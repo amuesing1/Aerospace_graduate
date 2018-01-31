@@ -1,7 +1,20 @@
+'''
+***************************************************
+File: assignment1.py
+
+CSCI 5822 assignment 1 code
+
+***************************************************
+'''
+
 from __future__ import division
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+
+__author__="Jeremy Muesing"
+__email__="jeremy.muesing@colorado.edu"
+__version__="1.0.0"
 
 def calc_prior(s,sigma):
     P=math.exp(-((s/sigma)+(s/sigma)))
