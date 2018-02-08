@@ -1,4 +1,4 @@
-function [ new_image ] = warp1( img1,img2,H )
+function [ new_image ] = warp2( img1,img2,H )
 %UNTITLED4 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -41,21 +41,7 @@ for i=1:length(coordinates_new)
         continue
     else
         for k=1:3
-%             new_image(coordinates_new(1,i)+x_shift,coordinates_new(2,i)+y_shift,k)=img1(round(final_points_old(1,i)),round(final_points_old(2,i)),k);
-            if isnan(new_image(coordinates_new(1,i)+x_shift,coordinates_new(2,i)+y_shift,k))
-                new_image(coordinates_new(1,i)+x_shift,coordinates_new(2,i)+y_shift,k)=img1(round(final_points_old(1,i)),round(final_points_old(2,i)),k);
-            else
-                dist1=norm(center1-[final_points_old(1,i),final_points_old(2,i)]);
-                dist2=norm(center2-[coordinates_new(1,i),coordinates_new(2,i)]);
-                if dist1<dist2
-                    new_image(coordinates_new(1,i)+x_shift,coordinates_new(2,i)+y_shift,k)=img1(round(final_points_old(1,i)),round(final_points_old(2,i)),k);
-                else
-                    continue
-                end
-                %                 new_image(coordinates_new(1,i)+x_shift,coordinates_new(2,i)+y_shift,k)=...
-                %                     mean([img1(round(final_points_old(1,i)),round(final_points_old(2,i)),k),...
-                %                     new_image(coordinates_new(1,i)+x_shift,coordinates_new(2,i)+y_shift,k)]);
-            end
+            new_image(coordinates_new(1,i)+x_shift,coordinates_new(2,i)+y_shift,k)=img1(round(final_points_old(1,i)),round(final_points_old(2,i)),k);
         end
     end
 end

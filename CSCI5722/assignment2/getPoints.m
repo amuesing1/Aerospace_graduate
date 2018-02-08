@@ -1,4 +1,4 @@
-function [ corresponding_array ] = getPoints(img1,img2 )
+function [ corresponding_array ] = getPoints(img1,img2,N )
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -9,9 +9,12 @@ subplot(1,2,1)
 imagesc(img1);
 subplot(1,2,2)
 imagesc(img2);
-corresponding_array=zeros(10,4);
-for i=1:20
+% imagesc(img2);
+corresponding_array=zeros(N/2,4);
+for i=1:N
     [x,y]=ginput(1);
+%     x
+%     y
     hold on;
     plot(x,y,'ro')
     x_ref=ceil(i/2);
