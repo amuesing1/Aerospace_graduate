@@ -21,7 +21,9 @@ while choice ~= 1
         case 2
             img1=imread('uttower1.JPG');
             img2=imread('uttower2.JPG');
-%             points=getPoints(img1,img2,20);
+            h=msgbox('Choose a point on the left image, then select its corresponding point in the right image. Do this 10 times');
+            waitfor(h);
+            %             points=getPoints(img1,img2,20);
             points=[436.736760124611	303.713273195876	885.153188180404	325.717139175258;
                 438.331775700935	321.316365979381	886.745723172629	346.840850515464;
                 502.132398753894	399.650128865979	958.409797822706	421.653994845361;
@@ -35,7 +37,7 @@ while choice ~= 1
             H=computeH(points);
 %             warpped=warp1(img1,img2,H);
             % This one looks a little better imo
-            warpped=warp1(img2,img1,inv(H));
+            warpped=warp1(img2,img1,inv(H),'mosaic');
             subplot(3,2,1)
             imagesc(img2);
             subplot(3,2,2)
@@ -47,15 +49,18 @@ while choice ~= 1
         case 4
             img1=imread('saul.jpg');
             img2=imread('trump.jpg');
-            points=getPoints(img1,img2,8);
-%             points=[87.2289719626167,37.1494845360824,278.898133748056,242.923969072165;
-%                 1173.83333333333,37.1494845360824,519.084758942457,242.923969072165;
-%                 83.2414330218068,549.314432989691,261.915241057543,386.289948453608;
-%                 1211.71495327103,534.469072164948,531.215396578538,385.725515463918];
+            h=msgbox('Select 4 points in this order: Top left billboard, top left new location, top right, bottom left, bottom right');
+            waitfor(h);
+            %             points=getPoints(img1,img2,8);
+            points=[87.2289719626167,37.1494845360824,278.898133748056,242.923969072165;
+                1173.83333333333,37.1494845360824,519.084758942457,242.923969072165;
+                83.2414330218068,549.314432989691,261.915241057543,386.289948453608;
+                1211.71495327103,534.469072164948,531.215396578538,385.725515463918];
             points=round(points);
             img1=img1(min(points(:,2)):max(points(:,2)),min(points(:,1)):max(points(:,1)),:);
+            points(:,1:2)=[0,0;size(img1,2),0;0,size(img1,1);size(img1,2),size(img1,1)];
             H=computeH(points);
-            billboard=warp2(img1,img2,H);
+            billboard=warp1(img1,img2,H,'warp');
             imshow(billboard)
             
             
