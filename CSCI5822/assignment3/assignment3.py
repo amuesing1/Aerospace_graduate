@@ -170,7 +170,7 @@ for j in range(3):
     plt.colorbar(cs,ticks=cs.levels)
     plt.xlabel('X velocity')
     plt.ylabel('Y velocity')
-    plt.title('Log Postieror of Motion (unscaled) | Example '+letter)
+    plt.title('Log Posterior of Motion (unscaled) | Example '+letter)
     plt.show()
 # task 3
 for j in range(3):
@@ -187,7 +187,7 @@ for j in range(3):
     plt.colorbar(cs,ticks=cs.levels)
     plt.xlabel('X velocity')
     plt.ylabel('Y velocity')
-    plt.title('Postieror of Motion (scaled) | Example '+letter)
+    plt.title('Posterior of Motion (scaled) | Example '+letter)
     plt.show()
 
 # Part III
