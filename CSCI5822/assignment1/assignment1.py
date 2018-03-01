@@ -61,10 +61,16 @@ def contour_plot(P):
             Z[10-i,10-i:10+i]=P[i]
             Z[10+i,10-i:10+i+1]=P[i]
             Z[10-i:10+i,10+i]=P[i]
+    reg=Z
     Z=np.log(Z)
     x=range(-10,11)
-    plt.contourf(x,x,Z,corner_mask=False)
+    cs = plt.contourf(x,x,Z,corner_mask=False)
+    plt.colorbar(cs,ticks=cs.levels)
     plt.title('Contour plot log(P(y $\epsilon$ concept|X))')
+    plt.show()
+    cs = plt.contourf(x,x,reg,corner_mask=False)
+    plt.colorbar(cs,ticks=cs.levels)
+    plt.title('Contour plot P(y$\epsilon$ concept|X)')
     plt.show()
    
 if __name__ == "__main__":
