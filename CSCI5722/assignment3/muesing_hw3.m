@@ -28,11 +28,11 @@ frameRightGray = rgb2gray(frameRightRect);
 disparityMap = disparity(frameLeftGray, frameRightGray);
 
 % Task 1
-ssd_1=SSD(frameLeftGray,frameRightGray,1,'RL');
-ssd_5=SSD(frameLeftGray,frameRightGray,5,'RL');
-ssd_11=SSD(frameLeftGray,frameRightGray,11,'RL');
-save('task1.mat','ssd_1','ssd_5','ssd_11')
-% load('task1.mat');
+% ssd_1=SSD(frameLeftGray,frameRightGray,1,'RL');
+% ssd_5=SSD(frameLeftGray,frameRightGray,5,'RL');
+% ssd_11=SSD(frameLeftGray,frameRightGray,11,'RL');
+% save('task1.mat','ssd_1','ssd_5','ssd_11')
+load('task1.mat');
 figure(1)
 subplot(2,2,1)
 imshow(ssd_1,[0,64]);
@@ -52,22 +52,22 @@ title('Matlab Disparity Map');
 colorbar
 
 % Task 2
-ncc_3=NCC(frameLeftGray,frameRightGray,3,'RL');
-ncc_5=NCC(frameLeftGray,frameRightGray,5,'RL');
-ncc_7=NCC(frameLeftGray,frameRightGray,7,'RL');
-save('task2.mat','ncc_3','ncc_5','ncc_7')
-% load('task2.mat');
+% ncc_3=NCC(frameLeftGray,frameRightGray,3,'RL');
+% ncc_5=NCC(frameLeftGray,frameRightGray,5,'RL');
+% ncc_7=NCC(frameLeftGray,frameRightGray,7,'RL');
+% save('task2.mat','ncc_3','ncc_5','ncc_7')
+load('task2.mat');
 figure(2)
 subplot(2,2,1)
-imshow(ssd_1,[0,64]);
+imshow(ncc_3,[0,64]);
 title('NCC Disparity Map (3x3)');
 colorbar
 subplot(2,2,2)
-imshow(ssd_5,[0,64]);
+imshow(ncc_5,[0,64]);
 title('NCC Disparity Map (5x5)');
 colorbar
 subplot(2,2,3)
-imshow(ssd_11,[0,64]);
+imshow(ncc_7,[0,64]);
 title('NCC Disparity Map (7x7)');
 colorbar
 subplot(2,2,4)
@@ -76,13 +76,13 @@ title('Matlab Disparity Map');
 colorbar
 
 % Task 4
-window_size=3;
-d_ssd_lr=unique_SSD(frameLeftGray,frameRightGray,window_size,'LR');
-d_ssd_rl=unique_SSD(frameLeftGray,frameRightGray,window_size,'RL');
-d_ncc_lr=unique_NCC(frameLeftGray,frameRightGray,window_size,'LR');
-d_ncc_rl=unique_NCC(frameLeftGray,frameRightGray,window_size,'RL');
-save('task4.mat','d_ssd_lr','d_ssd_rl','d_ncc_lr','d_ncc_rl');
-% load('task4.mat');
+% window_size=3;
+% d_ssd_lr=unique_SSD(frameLeftGray,frameRightGray,window_size,'LR');
+% d_ssd_rl=unique_SSD(frameLeftGray,frameRightGray,window_size,'RL');
+% d_ncc_lr=unique_NCC(frameLeftGray,frameRightGray,window_size,'LR');
+% d_ncc_rl=unique_NCC(frameLeftGray,frameRightGray,window_size,'RL');
+% save('task4.mat','d_ssd_lr','d_ssd_rl','d_ncc_lr','d_ncc_rl');
+load('task4.mat');
 out_ssd=outliers(d_ssd_lr,d_ssd_rl,1);
 out_ncc=outliers(d_ncc_lr,d_ssd_rl,1);
 figure(3)
@@ -103,17 +103,17 @@ imshow(Z,[0,max(max(Z))])
 title('Depth from Disparity')
 
 % Task 6
-left=imread('frame_1L.png');
+% left=imread('frame_1L.png');
 left_true=imread('frame_1LR.png');
-left=rgb2gray(left);
-right=imread('frame_1R.png');
+% left=rgb2gray(left);
+% right=imread('frame_1R.png');
 right_true=imread('frame_1RL.png');
-right=rgb2gray(right);
-
-d_ssd_lr_6=unique_SSD(left,right,window_size,'LR');
-d_ssd_rl_6=unique_SSD(left,right,window_size,'RL');
-save('task6.mat','d_ssd_lr_6','d_ssd_rl_6');
-% load('task6.mat');
+% right=rgb2gray(right);
+% 
+% d_ssd_lr_6=unique_SSD(left,right,window_size,'LR');
+% d_ssd_rl_6=unique_SSD(left,right,window_size,'RL');
+% save('task6.mat','d_ssd_lr_6','d_ssd_rl_6');
+load('task6.mat');
 diff_lr=left_true-d_ssd_lr_6;
 diff_rl=right_true-d_ssd_rl_6;
 figure(5)
@@ -126,7 +126,7 @@ imshow(diff_rl,[0,64])
 colorbar
 title('RL errors')
 
-figure(6)
+% figure(6)
 subplot(1,2,1)
 histogram(diff_lr)
 title('LR Errors')
@@ -137,15 +137,14 @@ title('RL Errors')
 xlabel('Size of Error')
 
 % Task 7
-occ=0.01;
-maxDisp=63;
-dis=zeros(size(frameLeftGray));
-for i=1:size(frameLeftGray,1)
-    e1=frameLeftGray(i,:);
-    e2=frameRightGray(i,:);
-    dis(i,:)=stereoDP(e1,e2,maxDisp,occ);
-end
-dis=stereoDP(left(300,:),right(300,:),maxDisp,occ);
+% occ=0.01;
+% maxDisp=63;
+% dis=zeros(size(frameLeftGray));
+% for i=1:size(frameLeftGray,1)
+%     e1=frameLeftGray(i,:);
+%     e2=frameRightGray(i,:);
+%     dis(i,:)=stereoDP(e1,e2,maxDisp,occ);
+% end
 save('task7.mat','dis');
 load('task7.mat');
 max_d=max(max(dis));
