@@ -46,6 +46,9 @@ for i=(1+offset):(size(img1,1)-offset)
                 else
                     diff=img1_vec-guassian.*img2(i-offset:i+offset,k-offset:k+offset);
                     SSD=sum(diff.^2);
+                    % This ensures that the first and closest match is always
+                % chosen and kept. That is my criteria for dealing with
+                % multiple matches
                     if SSD<min
                         min=SSD;
                         min_index=k-j;

@@ -31,6 +31,9 @@ for i=1:size(img1,1)
                 continue
             else
                 NCC=dot(img1_vec,img2(i,k-offset:k+offset)/norm(img2(i,k-offset:k+offset)))/window_size;
+                % This ensures that the first and closest match is always
+                % chosen and kept. That is my criteria for dealing with
+                % multiple matches
                 if NCC<min
                     min=NCC;
                     min_index=k-j;
