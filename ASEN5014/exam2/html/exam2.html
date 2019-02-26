@@ -1,0 +1,234 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>exam2</title><meta name="generator" content="MATLAB 9.2"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2018-11-15"><meta name="DC.source" content="exam2.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><pre class="codeinput">close <span class="string">all</span>; clear <span class="string">all</span>; clc;
+A=[-0.0869 0 0.039 -1; -4.424 -1.184 0 0.335; 0 1 0 0; 2.148 -.021 0 -.228];
+B=[.0223;.547;0;-1.169];
+
+<span class="comment">% 4a</span>
+damp(A)
+
+<span class="comment">% b</span>
+trial=linspace(-1,0,1000);
+ratio=zeros(length(trial),1);
+count=1;
+<span class="keyword">for</span> i=trial
+    kr=i;
+    K=[0 0 0 kr];
+    CL=A-B*K;
+    [Wn,zeta,P]=damp(CL);
+    ratio(count)=zeta(1);
+    count=count+1;
+<span class="keyword">end</span>
+
+[dis,ind]=min(abs(ratio-0.3));
+trial(ind)
+
+<span class="comment">% c</span>
+K=[0 0 0 trial(ind)];
+s = tf(<span class="string">'s'</span>);
+G = inv(s*eye(4)-A)*B;
+Gdamp= inv(s*eye(4)-(A-B*K))*B;
+figure
+bode(G(4),Gdamp(4),{1e-2,1e2})
+legend(<span class="string">'Open Loop'</span>,<span class="string">'Closed Loop'</span>)
+
+<span class="comment">% d</span>
+figure
+step(G(4),Gdamp(4))
+legend(<span class="string">'Open Loop'</span>,<span class="string">'Closed Loop'</span>)
+
+<span class="comment">%5c</span>
+a=0.01;
+Kwash=[0 0 0 -.58];
+Awash=[A-B*a*Kwash B*a;a a a a*Kwash(4) -a];
+Bwash=[B;0];
+Gwash_start=inv(s*eye(5)-Awash)*Bwash;
+
+figure
+bode(Gdamp(4),Gwash_start(4),{1e-2,1e2})
+legend(<span class="string">'4(c) damped'</span>,<span class="string">'5(c) washout'</span>)
+
+<span class="comment">% d</span>
+count=1;
+trial=linspace(-150,0,10000);
+ratio=zeros(length(trial),1);
+<span class="keyword">for</span> i=trial
+    Kwash=[0 0 0 i];
+    Awash=[A-B*a*Kwash B*a;a*Kwash -a];
+    [Wn,zeta,P]=damp(Awash);
+    ratio(count)=zeta(1);
+    count=count+1;
+<span class="keyword">end</span>
+[dis,ind]=min(abs(ratio-0.3));
+trial(ind)
+Kwash=[0 0 0 trial(ind)];
+Awash=[A-B*a*Kwash B*a;a a a a*Kwash(4) -a];
+Bwash=[B;0];
+Gwash=inv(s*eye(5)-Awash)*Bwash;
+figure
+bode(Gwash_start(4),Gwash(4),{1e-2,1e2});
+legend(<span class="string">'washout'</span>,<span class="string">'washout damped system'</span>)
+
+figure
+step(G(4),Gdamp(4),Gwash(4))
+legend(<span class="string">'Open Loop'</span>,<span class="string">'Closed Loop'</span>,<span class="string">'Washout'</span>)
+</pre><pre class="codeoutput">                                                                        
+         Pole              Damping       Frequency       Time Constant  
+                                       (rad/TimeUnit)     (TimeUnit)    
+                                                                        
+ -1.18e-01 + 1.49e+00i     7.91e-02       1.50e+00          8.44e+00    
+ -1.18e-01 - 1.49e+00i     7.91e-02       1.50e+00          8.44e+00    
+ -1.26e+00                 1.00e+00       1.26e+00          7.95e-01    
+ -3.99e-03                 1.00e+00       3.99e-03          2.50e+02    
+
+ans =
+
+   -0.5796
+
+
+ans =
+
+  -57.8758
+
+</pre><img vspace="5" hspace="5" src="exam2_01.png" alt=""> <img vspace="5" hspace="5" src="exam2_02.png" alt=""> <img vspace="5" hspace="5" src="exam2_03.png" alt=""> <img vspace="5" hspace="5" src="exam2_04.png" alt=""> <img vspace="5" hspace="5" src="exam2_05.png" alt=""> <p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2017a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+close all; clear all; clc;
+A=[-0.0869 0 0.039 -1; -4.424 -1.184 0 0.335; 0 1 0 0; 2.148 -.021 0 -.228];
+B=[.0223;.547;0;-1.169];
+
+% 4a
+damp(A)
+
+% b
+trial=linspace(-1,0,1000);
+ratio=zeros(length(trial),1);
+count=1;
+for i=trial
+    kr=i;
+    K=[0 0 0 kr];
+    CL=A-B*K;
+    [Wn,zeta,P]=damp(CL);
+    ratio(count)=zeta(1);
+    count=count+1;
+end
+
+[dis,ind]=min(abs(ratio-0.3));
+trial(ind)
+
+% c
+K=[0 0 0 trial(ind)];
+s = tf('s');
+G = inv(s*eye(4)-A)*B;
+Gdamp= inv(s*eye(4)-(A-B*K))*B;
+figure
+bode(G(4),Gdamp(4),{1e-2,1e2})
+legend('Open Loop','Closed Loop')
+
+% d
+figure
+step(G(4),Gdamp(4))
+legend('Open Loop','Closed Loop')
+
+%5c
+a=0.01;
+Kwash=[0 0 0 -.58];
+Awash=[A-B*a*Kwash B*a;a a a a*Kwash(4) -a];
+Bwash=[B;0];
+Gwash_start=inv(s*eye(5)-Awash)*Bwash;
+
+figure
+bode(Gdamp(4),Gwash_start(4),{1e-2,1e2})
+legend('4(c) damped','5(c) washout')
+
+% d
+count=1;
+trial=linspace(-150,0,10000);
+ratio=zeros(length(trial),1);
+for i=trial
+    Kwash=[0 0 0 i];
+    Awash=[A-B*a*Kwash B*a;a*Kwash -a];
+    [Wn,zeta,P]=damp(Awash);
+    ratio(count)=zeta(1);
+    count=count+1;
+end
+[dis,ind]=min(abs(ratio-0.3));
+trial(ind)
+Kwash=[0 0 0 trial(ind)];
+Awash=[A-B*a*Kwash B*a;a a a a*Kwash(4) -a];
+Bwash=[B;0];
+Gwash=inv(s*eye(5)-Awash)*Bwash;
+figure
+bode(Gwash_start(4),Gwash(4),{1e-2,1e2});
+legend('washout','washout damped system')
+
+figure
+step(G(4),Gdamp(4),Gwash(4))
+legend('Open Loop','Closed Loop','Washout')
+##### SOURCE END #####
+--></body></html>
