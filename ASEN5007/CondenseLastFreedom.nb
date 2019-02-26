@@ -1,0 +1,389 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 11.3' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[     13805,        381]
+NotebookOptionsPosition[     12489,        349]
+NotebookOutlinePosition[     13348,        376]
+CellTagsIndexPosition[     13305,        373]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+Cell["\<\
+Module to do static condensation of last freedom of a superelement\
+\>", "Text",
+ CellFrame->True,
+ CellMargins->{{14, 55}, {Inherited, Inherited}},
+ CellLabelMargins->{{10, Inherited}, {Inherited, Inherited}},
+ ImageRegion->{{0, 1}, {0, 1}},
+ Background->RGBColor[
+  1, 1, 0],ExpressionUUID->"fa0b5073-70a4-44a3-9d5a-4ab26dddc689"],
+
+Cell[TextData[StyleBox["CondenseFreedom[K_,f_,k_]:=Module[{pivot,c,Kc,fc,\n   \
+ n=Length[K]}, If [n<=1, Return[{K,f}]];\n    If [k<=0 || k>n, \
+Return[{K,f}]];\n\tKc=Table[0,{n-1},{n-1}]; fc=Table[0,{n-1}];\n    \
+pivot=K[[k,k]]; If [pivot==0, Print[\"CondenseFreedom:\",\n    \"Singular \
+Matrix\"]; Return[{K,f}]]; ii=0;\n    For [i=1,i<=n,i++,  If [i==k, \
+Continue[]]; ii++;\n    \t c=K[[i,k]]/pivot;\n         \
+fc[[ii]]=f[[i]]-c*f[[k]]; jj=0;\n         For [j=1,j<=n,j++, If \
+[j==k,Continue[]]; jj++;\n             Kc[[ii,jj]]=K[[i,j]]-c*K[[k,j]]\n      \
+    ];\n    ];\n    Return[{Kc,fc}]\n];",
+ FontSize->16]], "Input",
+ CellFrame->True,
+ CellMargins->{{14, 55}, {Inherited, Inherited}},
+ CellLabelMargins->{{10, Inherited}, {Inherited, Inherited}},
+ CellChangeTimes->{{3.7473490286181107`*^9, 3.7473490472106943`*^9}, {
+   3.747349143886113*^9, 3.747349144127861*^9}, {3.747586075943453*^9, 
+   3.7475860773401203`*^9}, {3.747586375538865*^9, 3.747586475100728*^9}, {
+   3.747586550807798*^9, 3.7475865513103323`*^9}, {3.747586593664085*^9, 
+   3.747586594996152*^9}, {3.747586673322054*^9, 3.747586674127014*^9}, {
+   3.747586710310364*^9, 3.747586721263648*^9}, {3.747587051897797*^9, 
+   3.747587083377323*^9}, {3.7475872324667063`*^9, 3.747587263419132*^9}, {
+   3.747587296653507*^9, 3.7475873387853203`*^9}, {3.7475875670506763`*^9, 
+   3.747587583792363*^9}, 3.747587641723352*^9, {3.7475877219852247`*^9, 
+   3.747587727819812*^9}, 3.747587816115901*^9, {3.7475878672063837`*^9, 
+   3.747587868481188*^9}, {3.747587899011219*^9, 3.74758801137322*^9}, {
+   3.7475880445131474`*^9, 3.747588045397287*^9}, 3.747588077997695*^9},
+ ImageRegion->{{0, 1}, {0, 1}},
+ CellLabel->
+  "In[203]:=",ExpressionUUID->"e9d5d6a6-9abb-4b24-9073-b233b40a5e78"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ StyleBox[
+  RowBox[{
+   RowBox[{"ClearAll", "[", 
+    RowBox[{"K", ",", "f"}], "]"}], ";"}],
+  FontSize->16], "\n", 
+ StyleBox[
+  RowBox[{
+   RowBox[{"K", "=", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"88", ",", 
+        RowBox[{"-", "44"}], ",", 
+        RowBox[{"-", "44"}], ",", "0"}], "}"}], ",", 
+      RowBox[{"{", " ", 
+       RowBox[{
+        RowBox[{"-", "44"}], ",", "132", ",", 
+        RowBox[{"-", "44"}], ",", 
+        RowBox[{"-", "44"}]}], "}"}], ",", 
+      RowBox[{"{", " ", 
+       RowBox[{
+        RowBox[{"-", "44"}], ",", 
+        RowBox[{"-", "44"}], ",", "176", ",", 
+        RowBox[{"-", "44"}]}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"0", ",", 
+        RowBox[{"-", "44"}], ",", 
+        RowBox[{"-", "44"}], ",", "220"}], "}"}]}], "}"}]}], ";"}],
+  FontSize->16], "\n", 
+ StyleBox[
+  RowBox[{
+   RowBox[{
+    RowBox[{"f", "=", 
+     RowBox[{"{", 
+      RowBox[{"5", ",", "10", ",", "15", ",", "20"}], "}"}]}], ";"}], " "}],
+  FontSize->16], "\[IndentingNewLine]", 
+ StyleBox[
+  RowBox[{
+   RowBox[{"Print", "[", 
+    RowBox[{"\"\<Before condensation:\>\"", ",", "\"\< K=\>\"", ",", 
+     RowBox[{"K", "//", "MatrixForm"}], ",", "\"\< f=\>\"", ",", 
+     RowBox[{"f", "//", "MatrixForm"}]}], "]"}], ";"}],
+  FontSize->16], "\n", 
+ StyleBox[
+  RowBox[{
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{"K", ",", "f"}], "}"}], "=", 
+    RowBox[{"CondenseFreedom", "[", 
+     RowBox[{"K", ",", "f", ",", "2"}], "]"}]}], ";", 
+   RowBox[{"Print", "[", 
+    RowBox[{
+    "\"\<Upon condensing DOF 2:\>\"", ",", "\n", "  ", "\"\< K=\>\"", ",", 
+     RowBox[{"K", "//", "MatrixForm"}], ",", "\"\< f=\>\"", ",", 
+     RowBox[{"f", "//", "MatrixForm"}]}], "]"}], ";"}],
+  FontSize->16], "\n", 
+ StyleBox[
+  RowBox[{
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{"K", ",", "f"}], "}"}], "=", 
+    RowBox[{"CondenseFreedom", "[", 
+     RowBox[{"K", ",", "f", ",", "2"}], "]"}]}], ";", 
+   RowBox[{"Print", "[", 
+    RowBox[{
+    "\"\<Upon condensing DOF 2:\>\"", ",", "\n", "  ", "\"\< K=\>\"", ",", 
+     RowBox[{"K", "//", "MatrixForm"}], ",", "\"\< f=\>\"", ",", 
+     RowBox[{"f", "//", "MatrixForm"}]}], "]"}], ";"}],
+  FontSize->16]}], "Input",
+ CellChangeTimes->{{3.74734875115727*^9, 3.747348890932355*^9}, {
+  3.747349161273376*^9, 3.747349164522224*^9}, {3.7475866438967524`*^9, 
+  3.747586646687723*^9}, {3.747586723424254*^9, 3.747586726136112*^9}},
+ CellLabel->
+  "In[204]:=",ExpressionUUID->"b1428c6e-1c07-4338-8206-0bb44e30f68b"],
+
+Cell[BoxData[
+ InterpretationBox[
+  RowBox[{"\<\"Before condensation:\"\>", "\[InvisibleSpace]", "\<\" K=\"\>", 
+   "\[InvisibleSpace]", 
+   TagBox[
+    RowBox[{"(", "\[NoBreak]", GridBox[{
+       {"88", 
+        RowBox[{"-", "44"}], 
+        RowBox[{"-", "44"}], "0"},
+       {
+        RowBox[{"-", "44"}], "132", 
+        RowBox[{"-", "44"}], 
+        RowBox[{"-", "44"}]},
+       {
+        RowBox[{"-", "44"}], 
+        RowBox[{"-", "44"}], "176", 
+        RowBox[{"-", "44"}]},
+       {"0", 
+        RowBox[{"-", "44"}], 
+        RowBox[{"-", "44"}], "220"}
+      },
+      GridBoxAlignment->{
+       "Columns" -> {{Center}}, "ColumnsIndexed" -> {}, 
+        "Rows" -> {{Baseline}}, "RowsIndexed" -> {}},
+      GridBoxSpacings->{"Columns" -> {
+          Offset[0.27999999999999997`], {
+           Offset[0.7]}, 
+          Offset[0.27999999999999997`]}, "ColumnsIndexed" -> {}, "Rows" -> {
+          Offset[0.2], {
+           Offset[0.4]}, 
+          Offset[0.2]}, "RowsIndexed" -> {}}], "\[NoBreak]", ")"}],
+    Function[BoxForm`e$, 
+     MatrixForm[BoxForm`e$]]], "\[InvisibleSpace]", "\<\" f=\"\>", 
+   "\[InvisibleSpace]", 
+   TagBox[
+    RowBox[{"(", "\[NoBreak]", 
+     TagBox[GridBox[{
+        {"5"},
+        {"10"},
+        {"15"},
+        {"20"}
+       },
+       GridBoxAlignment->{
+        "Columns" -> {{Center}}, "ColumnsIndexed" -> {}, 
+         "Rows" -> {{Baseline}}, "RowsIndexed" -> {}},
+       GridBoxSpacings->{"Columns" -> {
+           Offset[0.27999999999999997`], {
+            Offset[0.5599999999999999]}, 
+           Offset[0.27999999999999997`]}, "ColumnsIndexed" -> {}, "Rows" -> {
+           Offset[0.2], {
+            Offset[0.4]}, 
+           Offset[0.2]}, "RowsIndexed" -> {}}],
+      Column], "\[NoBreak]", ")"}],
+    Function[BoxForm`e$, 
+     MatrixForm[BoxForm`e$]]]}],
+  SequenceForm["Before condensation:", " K=", 
+   MatrixForm[{{88, -44, -44, 0}, {-44, 132, -44, -44}, {-44, -44, 
+    176, -44}, {0, -44, -44, 220}}], " f=", 
+   MatrixForm[{5, 10, 15, 20}]],
+  Editable->False]], "Print",
+ CellChangeTimes->{
+  3.747587468240243*^9, 3.74758761571647*^9, {3.747587724094664*^9, 
+   3.747587730634831*^9}, 3.7475878716326027`*^9, {3.7475879041234827`*^9, 
+   3.747587951990779*^9}, {3.74758798582514*^9, 3.7475880135366697`*^9}, {
+   3.747588047862982*^9, 3.7475880814993143`*^9}},
+ CellLabel->
+  "During evaluation of \
+In[204]:=",ExpressionUUID->"a081015a-9b59-4027-8e55-40a6d6077f1c"],
+
+Cell[BoxData[
+ InterpretationBox[
+  RowBox[{"\<\"Upon condensing DOF 2:\"\>", 
+   "\[InvisibleSpace]", "\<\" K=\"\>", "\[InvisibleSpace]", 
+   TagBox[
+    RowBox[{"(", "\[NoBreak]", GridBox[{
+       {
+        FractionBox["220", "3"], 
+        RowBox[{"-", 
+         FractionBox["176", "3"]}], 
+        RowBox[{"-", 
+         FractionBox["44", "3"]}]},
+       {
+        RowBox[{"-", 
+         FractionBox["176", "3"]}], 
+        FractionBox["484", "3"], 
+        RowBox[{"-", 
+         FractionBox["176", "3"]}]},
+       {
+        RowBox[{"-", 
+         FractionBox["44", "3"]}], 
+        RowBox[{"-", 
+         FractionBox["176", "3"]}], 
+        FractionBox["616", "3"]}
+      },
+      GridBoxAlignment->{
+       "Columns" -> {{Center}}, "ColumnsIndexed" -> {}, 
+        "Rows" -> {{Baseline}}, "RowsIndexed" -> {}},
+      GridBoxSpacings->{"Columns" -> {
+          Offset[0.27999999999999997`], {
+           Offset[0.7]}, 
+          Offset[0.27999999999999997`]}, "ColumnsIndexed" -> {}, "Rows" -> {
+          Offset[0.2], {
+           Offset[0.4]}, 
+          Offset[0.2]}, "RowsIndexed" -> {}}], "\[NoBreak]", ")"}],
+    Function[BoxForm`e$, 
+     MatrixForm[BoxForm`e$]]], "\[InvisibleSpace]", "\<\" f=\"\>", 
+   "\[InvisibleSpace]", 
+   TagBox[
+    RowBox[{"(", "\[NoBreak]", 
+     TagBox[GridBox[{
+        {
+         FractionBox["25", "3"]},
+        {
+         FractionBox["55", "3"]},
+        {
+         FractionBox["70", "3"]}
+       },
+       GridBoxAlignment->{
+        "Columns" -> {{Center}}, "ColumnsIndexed" -> {}, 
+         "Rows" -> {{Baseline}}, "RowsIndexed" -> {}},
+       GridBoxSpacings->{"Columns" -> {
+           Offset[0.27999999999999997`], {
+            Offset[0.5599999999999999]}, 
+           Offset[0.27999999999999997`]}, "ColumnsIndexed" -> {}, "Rows" -> {
+           Offset[0.2], {
+            Offset[0.4]}, 
+           Offset[0.2]}, "RowsIndexed" -> {}}],
+      Column], "\[NoBreak]", ")"}],
+    Function[BoxForm`e$, 
+     MatrixForm[BoxForm`e$]]]}],
+  SequenceForm["Upon condensing DOF 2:", " K=", 
+   MatrixForm[{{
+      Rational[220, 3], 
+      Rational[-176, 3], 
+      Rational[-44, 3]}, {
+      Rational[-176, 3], 
+      Rational[484, 3], 
+      Rational[-176, 3]}, {
+      Rational[-44, 3], 
+      Rational[-176, 3], 
+      Rational[616, 3]}}], " f=", 
+   MatrixForm[{
+     Rational[25, 3], 
+     Rational[55, 3], 
+     Rational[70, 3]}]],
+  Editable->False]], "Print",
+ CellChangeTimes->{
+  3.747587468240243*^9, 3.74758761571647*^9, {3.747587724094664*^9, 
+   3.747587730634831*^9}, 3.7475878716326027`*^9, {3.7475879041234827`*^9, 
+   3.747587951990779*^9}, {3.74758798582514*^9, 3.7475880135366697`*^9}, {
+   3.747588047862982*^9, 3.747588081501225*^9}},
+ CellLabel->
+  "During evaluation of \
+In[204]:=",ExpressionUUID->"a7b72752-80f9-4c09-b9b9-8fc2b2c68c0f"],
+
+Cell[BoxData[
+ InterpretationBox[
+  RowBox[{"\<\"Upon condensing DOF 2:\"\>", 
+   "\[InvisibleSpace]", "\<\" K=\"\>", "\[InvisibleSpace]", 
+   TagBox[
+    RowBox[{"(", "\[NoBreak]", GridBox[{
+       {"52", 
+        RowBox[{"-", "36"}]},
+       {
+        RowBox[{"-", "36"}], "184"}
+      },
+      GridBoxAlignment->{
+       "Columns" -> {{Center}}, "ColumnsIndexed" -> {}, 
+        "Rows" -> {{Baseline}}, "RowsIndexed" -> {}},
+      GridBoxSpacings->{"Columns" -> {
+          Offset[0.27999999999999997`], {
+           Offset[0.7]}, 
+          Offset[0.27999999999999997`]}, "ColumnsIndexed" -> {}, "Rows" -> {
+          Offset[0.2], {
+           Offset[0.4]}, 
+          Offset[0.2]}, "RowsIndexed" -> {}}], "\[NoBreak]", ")"}],
+    Function[BoxForm`e$, 
+     MatrixForm[BoxForm`e$]]], "\[InvisibleSpace]", "\<\" f=\"\>", 
+   "\[InvisibleSpace]", 
+   TagBox[
+    RowBox[{"(", "\[NoBreak]", 
+     TagBox[GridBox[{
+        {"15"},
+        {"30"}
+       },
+       GridBoxAlignment->{
+        "Columns" -> {{Center}}, "ColumnsIndexed" -> {}, 
+         "Rows" -> {{Baseline}}, "RowsIndexed" -> {}},
+       GridBoxSpacings->{"Columns" -> {
+           Offset[0.27999999999999997`], {
+            Offset[0.5599999999999999]}, 
+           Offset[0.27999999999999997`]}, "ColumnsIndexed" -> {}, "Rows" -> {
+           Offset[0.2], {
+            Offset[0.4]}, 
+           Offset[0.2]}, "RowsIndexed" -> {}}],
+      Column], "\[NoBreak]", ")"}],
+    Function[BoxForm`e$, 
+     MatrixForm[BoxForm`e$]]]}],
+  SequenceForm["Upon condensing DOF 2:", " K=", 
+   MatrixForm[{{52, -36}, {-36, 184}}], " f=", 
+   MatrixForm[{15, 30}]],
+  Editable->False]], "Print",
+ CellChangeTimes->{
+  3.747587468240243*^9, 3.74758761571647*^9, {3.747587724094664*^9, 
+   3.747587730634831*^9}, 3.7475878716326027`*^9, {3.7475879041234827`*^9, 
+   3.747587951990779*^9}, {3.74758798582514*^9, 3.7475880135366697`*^9}, {
+   3.747588047862982*^9, 3.747588081502799*^9}},
+ CellLabel->
+  "During evaluation of \
+In[204]:=",ExpressionUUID->"dbb761c3-67d7-47c9-9e01-d0f4206c8692"]
+}, Open  ]]
+},
+WindowToolbars->{},
+CellGrouping->Manual,
+WindowSize->{1920, 1007},
+WindowMargins->{{0, Automatic}, {0, Automatic}},
+PrivateNotebookOptions->{"VersionedStylesheet"->{"Default.nb"[8.] -> False}},
+ShowCellLabel->True,
+ShowCellTags->False,
+FrontEndVersion->"11.3 for Linux x86 (64-bit) (March 6, 2018)",
+StyleDefinitions->"Default.nb",
+PrivateNotebookOptions -> {"ColorPalette" -> {RGBColor, -1}},
+RenderingOptions -> {"ObjectDithering" -> True},
+RenderingOptions -> {"RasterDithering" -> False},
+MacintoshSystemPageSetup -> \
+"00<0001804P000000]P2:?oQon82n@960dL5:0?l0080001804P000000]P2:001\n\
+0000I00000400`<300000BL?00400@00000000000000060801T1T00000000000\n\
+00000000000000000000000000000000"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[558, 20, 342, 8, 53, "Text",ExpressionUUID->"fa0b5073-70a4-44a3-9d5a-4ab26dddc689"],
+Cell[903, 30, 1761, 27, 390, "Input",ExpressionUUID->"e9d5d6a6-9abb-4b24-9073-b233b40a5e78"],
+Cell[CellGroupData[{
+Cell[2689, 61, 2503, 74, 193, "Input",ExpressionUUID->"b1428c6e-1c07-4338-8206-0bb44e30f68b"],
+Cell[5195, 137, 2425, 67, 77, "Print",ExpressionUUID->"a081015a-9b59-4027-8e55-40a6d6077f1c"],
+Cell[7623, 206, 2805, 84, 89, "Print",ExpressionUUID->"a7b72752-80f9-4c09-b9b9-8fc2b2c68c0f"],
+Cell[10431, 292, 2042, 54, 41, "Print",ExpressionUUID->"dbb761c3-67d7-47c9-9e01-d0f4206c8692"]
+}, Open  ]]
+}
+]
+*)
+
