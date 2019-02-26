@@ -99,3 +99,13 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+*.pdf
+*.png
+*.jpg
+*.gif
+*.pptx
+*.zip
+
+# data crap
+/CSCI5722/assignment5/hmwk5/*
