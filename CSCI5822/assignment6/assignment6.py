@@ -14,7 +14,7 @@ with pm.Model() as model:
     G3=pm.Bernoulli('G3',G3_p)
     X2=pm.Normal('X2',mu=pm.math.switch(G2,60,50),sd=np.sqrt(10))
     X3=pm.Normal('X3',mu=pm.math.switch(G3,60,50),sd=np.sqrt(10))
-    trace=pm.sample(10000)
+    trace=pm.sample(100000)
 
 dictionary = {
             'G1': [2 if x==1 else 1 for x in trace['G1'].tolist() ],
