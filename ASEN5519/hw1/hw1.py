@@ -33,6 +33,7 @@ class Bug():
                 sides+=1
         #check if there is something in front
         return sides
+
     def check_corners(self):
         attempt=np.array([[1,1,0,1],[1,-1,1,0],[-1,1,-1,0],[-1,-1,0,-1]])
         #  print(self.loc)
@@ -41,6 +42,7 @@ class Bug():
             #  print(place,row[:2],self.loc)
             if self.grid[place[0],place[1]]==1:
                 return row[2:]
+
     def turning(self,x_try,y_try):
         next_move=np.array([[1,0,0,1],[-1,0,0,-1],[0,1,-1,0],[0,-1,1,0]])
         for row in next_move:
@@ -111,68 +113,43 @@ class Bug():
                 self.loc+=new_move
 
     def boundary_follow_2(self,x_move,y_move):
-        def closest(current_point,current_d):
-            how_far,xd,yd=self.get_distance()
-            if how_far<current_d:
-                return copy.copy(self.loc),how_far
-            else:
-                return current_point,current_d
-            
         new_move=self.turning(x_move,y_move)
         starting_point=copy.copy(self.loc)
-        closest_point=copy.copy(starting_point)
+        #  closest_point=copy.copy(starting_point)
         closest_d,xd,yd=self.get_distance()
-        record_boundary=[copy.copy(self.loc)]
-        record_boundary=[list(self.loc)]
+        current_d=copy.copy(closest_d)
         self.loc+=new_move
+        #  print(closest_d)
         #  print(new_move,self.loc)
-        while not np.array_equal(self.loc,starting_point):
+        while (self.regular_path[self.loc[0],self.loc[1]]!=1) or (current_d>=closest_d):
             stop=False
+            #  if (self.loc[0]==20) and (self.loc[1]==20):
+            #  print(self.regular_path[self.loc[0],self.loc[1]],current_d<closest_d)
             self.bug_path[self.loc[0],self.loc[1]]+=1
             still_there=self.check_sides()
             while (still_there) and (not stop):
                 if still_there==2:
                     new_move=self.turning(new_move[0],new_move[1])
                 self.loc+=new_move
-                closest_point,closest_d=closest(closest_point,closest_d)
-                #  record_boundary.append(copy.copy(self.loc))
-                record_boundary.append(list(self.loc))
+                current_d,xd,yd=self.get_distance()
                 #  print(self.loc)
                 self.bug_path[self.loc[0],self.loc[1]]+=1
                 still_there=self.check_sides()
-                if np.array_equal(self.loc,starting_point):
+                #  print(self.regular_path[self.loc[0],self.loc[1]],current_d,closest_d,stop)
+                #  print(current_d<closest_d)
+                if (self.regular_path[self.loc[0],self.loc[1]]==1) and (current_d<closest_d):
                     stop=True
+
 
             if not stop:
                 new_move=self.check_corners()
-                print(new_move,self.loc)
-                self.loc+=new_move
-                closest_point,closest_d=closest(closest_point,closest_d)
-                record_boundary.append(list(self.loc))
-
-
-        index_of_closest=record_boundary.index(list(closest_point))
-        if index_of_closest<(len(record_boundary)/2):
-            new_move=self.turning(x_move,y_move)
-        else:
-            new_move=[a*-1 for a in new_move]
-        while not np.array_equal(self.loc,closest_point):
-            stop=False
-            self.bug_path[self.loc[0],self.loc[1]]+=1
-            still_there=self.check_sides()
-            while (still_there) and (not stop):
-                if still_there==2:
-                    new_move=self.turning(new_move[0],new_move[1])
-                self.loc+=new_move
+                #  print(new_move,self.loc)
                 #  print(self.loc)
-                self.bug_path[self.loc[0],self.loc[1]]+=1
-                still_there=self.check_sides()
-                if np.array_equal(self.loc,closest_point):
-                    stop=True
-
-            if not stop:
-                new_move=check_corners()
                 self.loc+=new_move
+                current_d,xd,yd=self.get_distance()
+
+        #  print(self.loc)
+        #  sys.exit()
 
     def bug1(self):
         self.loc=np.where(self.grid==5)
@@ -190,6 +167,7 @@ class Bug():
             y_move=int(yd/xd)
         else:
             y_move=int(yd)
+        stop=False
         while (self.grid[self.loc[0],self.loc[1]]!=10):
             boundary=self.check_boundary(x_move,0)
             #  print(boundary,self.loc)
@@ -207,6 +185,8 @@ class Bug():
             else:
                 self.loc[0]+=x_move
                 self.bug_path[self.loc[0],self.loc[1]]+=1
+            if self.grid[self.loc[0],self.loc[1]]==10:
+                stop=True
             boundary=self.check_boundary(0,y_move)
             #  print(boundary,self.loc)
             if boundary:
@@ -221,8 +201,9 @@ class Bug():
                 else:
                     y_move=int(yd)
             else:
-                self.loc[1]+=y_move
-                self.bug_path[self.loc[0],self.loc[1]]+=1
+                if not stop:
+                    self.loc[1]+=y_move
+                    self.bug_path[self.loc[0],self.loc[1]]+=1
         print(self.loc)
         #implement bug 1 algorithm
         #return the path of the bug through the array
@@ -247,44 +228,33 @@ class Bug():
         self.regular_path=np.zeros(self.grid.shape)
         loc=copy.copy(self.loc)
         while (self.grid[loc[0],loc[1]]!=10):
-            self.loc[0]+=x_move
+            loc[0]+=x_move
             self.regular_path[loc[0],loc[1]]=1
-            self.loc[1]+=y_move
+            loc[1]+=y_move
             self.regular_path[loc[0],loc[1]]=1
+            #  print(loc)
         
+        #  print (self.regular_path)
+        #  sys.exit()
+        stop=False
         while (self.grid[self.loc[0],self.loc[1]]!=10):
             boundary=self.check_boundary(x_move,0)
             #  print(boundary,self.loc)
             if boundary:
                 self.boundary_follow_2(x_move,0)
-                d,xd,yd=self.get_distance()
-                if yd>0:
-                    x_move=int(xd/yd)
-                else:
-                    x_move=int(xd)
-                if xd>0:
-                    y_move=int(yd/xd)
-                else:
-                    y_move=int(yd)
             else:
                 self.loc[0]+=x_move
                 self.bug_path[self.loc[0],self.loc[1]]+=1
+            if self.grid[self.loc[0],self.loc[1]]==10:
+                stop=True
             boundary=self.check_boundary(0,y_move)
             #  print(boundary,self.loc)
             if boundary:
                 self.boundary_follow_2(0,y_move)
-                d,xd,yd=self.get_distance()
-                if yd>0:
-                    x_move=int(xd/yd)
-                else:
-                    x_move=int(xd)
-                if xd>0:
-                    y_move=int(yd/xd)
-                else:
-                    y_move=int(yd)
             else:
-                self.loc[1]+=y_move
-                self.bug_path[self.loc[0],self.loc[1]]+=1
+                if not stop:
+                    self.loc[1]+=y_move
+                    self.bug_path[self.loc[0],self.loc[1]]+=1
         print(self.loc)
         #implement bug1 algorithm
         #return the path of the bug through the grid
@@ -329,11 +299,12 @@ if __name__ == '__main__':
     if args.problem==9:
         grid1=make_grid_world(1)
         grid2=make_grid_world(2)
-        bug1=Bug(grid1)
-        #  bug1.bug1()
-        bug1.bug2()
-        #  bug1=Bug(grid2)
-        #  bug1.bug1()
+        bug=Bug(grid1)
+        bug.bug1()
+        bug.bug2()
+        bug=Bug(grid2)
+        bug.bug1()
+        bug.bug2()
     elif args.problem==10:
         print("not ready yet")
 
