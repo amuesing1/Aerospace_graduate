@@ -10,56 +10,58 @@ class Bug():
         self.grid=grid
 
     def check_boundary(self,x_move,y_move):
+        #check each neighbor cell if it's filled
         end_spot=[self.loc[0]+x_move,self.loc[1]+y_move]
         cell_contents=self.grid[end_spot[0],end_spot[1]]
         if cell_contents==1:
             return 1
         else:
             return 0
-        #check each neighbor cell if it's filled
 
     def get_distance(self):
+        #check absolute distance to target from current postion
         q_goal=np.where(self.grid==10)
         d=np.sqrt((q_goal[0]-self.loc[0])**2+(q_goal[1]-self.loc[1])**2)
         return d,q_goal[0]-self.loc[0],q_goal[1]-self.loc[1]
-        #check absolute distance to target from current postion
 
     def check_sides(self):
+        #check to see if a boundary is still left or right of the bug
         attempt=np.array([[0,1],[1,0],[-1,0],[0,-1]])
         sides=0
         for row in attempt:
             place=row+self.loc
-            #  print(place,row[:2],self.loc)
             if self.grid[place[0],place[1]]==1:
+                #if there is a boundary in front, this will return 2
                 sides+=1
-        #check if there is something in front
         return sides
 
     def check_corners(self):
+        #find the corner to go around and return the correct movement
         attempt=np.array([[1,1,0,1],[1,-1,1,0],[-1,1,-1,0],[-1,-1,0,-1]])
-        #  print(self.loc)
         for row in attempt:
             place=row[:2]+self.loc
-            #  print(place,row[:2],self.loc)
             if self.grid[place[0],place[1]]==1:
                 return row[2:]
 
     def check_corners_right(self):
+        #if bug 1 is going backwards to the closest point, it becomes right turning
+        #same as the corners algorithm but turns right
         attempt=np.array([[1,1,1,0],[1,-1,0,-1],[-1,1,0,1],[-1,-1,-1,0]])
-        #  print(self.loc)
         for row in attempt:
             place=row[:2]+self.loc
-            #  print(place,row[:2],self.loc)
             if self.grid[place[0],place[1]]==1:
                 return row[2:]
 
     def turning(self,x_try,y_try):
+        #turn left of the encountered object
         next_move=np.array([[1,0,0,1],[-1,0,0,-1],[0,1,-1,0],[0,-1,1,0]])
         for row in next_move:
             if (x_try==row[0]) and (y_try==row[1]):
                 return row[2:]
 
     def turning_right(self,x_try,y_try):
+        #if bug 1 is going backwards to the closest point, it becomes right turning
+        #same as turning algorithm but turns right
         next_move=np.array([[1,0,0,-1],[-1,0,0,1],[0,1,1,0],[0,-1,-1,0]])
         for row in next_move:
             if (x_try==row[0]) and (y_try==row[1]):
@@ -67,32 +69,37 @@ class Bug():
 
     def boundary_follow_1(self,x_move,y_move):
         def closest(current_point,current_d):
+            #keep track of the closest point and its distance
             how_far,xd,yd=self.get_distance()
             if how_far<current_d:
                 return copy.copy(self.loc),how_far
             else:
                 return current_point,current_d
             
+        #start by turning left
         new_move=self.turning(x_move,y_move)
         starting_point=copy.copy(self.loc)
         closest_point=copy.copy(starting_point)
         closest_d,xd,yd=self.get_distance()
+        #recording the boundary to know which direction
+        #to go to get to closest point
         record_boundary=[copy.copy(self.loc)]
         record_boundary=[list(self.loc)]
         self.loc+=new_move
-        #  print(self.loc)
-        #  print(new_move,self.loc)
         while not np.array_equal(self.loc,starting_point):
             stop=False
+            #recording the path for distance measurments
             self.bug_path[self.loc[0],self.loc[1]]+=1
+            #recording the path for graphing purposes
             self.bug_path_graph.append(copy.copy(self.loc))
+            #making sure we aren't at a corner
             still_there=self.check_sides()
             while (still_there) and (not stop):
                 if still_there==2:
+                    #specific case on an internal turn
                     new_move=self.turning(new_move[0],new_move[1])
                 self.loc+=new_move
                 closest_point,closest_d=closest(closest_point,closest_d)
-                #  record_boundary.append(copy.copy(self.loc))
                 record_boundary.append(list(self.loc))
                 #  print(self.loc)
                 self.bug_path[self.loc[0],self.loc[1]]+=1
@@ -102,6 +109,7 @@ class Bug():
                     stop=True
 
             if not stop:
+                #turning around a corner
                 new_move=self.check_corners()
                 self.loc+=new_move
                 closest_point,closest_d=closest(closest_point,closest_d)
@@ -110,6 +118,7 @@ class Bug():
 
         index_of_closest=record_boundary.index(list(closest_point))
         if index_of_closest<(len(record_boundary)/2):
+            #left turning to closest point
             new_move=self.turning(x_move,y_move)
             while not np.array_equal(self.loc,closest_point):
                 stop=False
@@ -130,6 +139,7 @@ class Bug():
                     new_move=self.check_corners()
                     self.loc+=new_move
         else:
+            #right turning to closest point
             new_move=[a*-1 for a in new_move]
             while not np.array_equal(self.loc,closest_point):
                 stop=False
@@ -152,18 +162,15 @@ class Bug():
         #  print(self.loc)
 
     def boundary_follow_2(self,x_move,y_move):
+        #turn left at obstacle
         new_move=self.turning(x_move,y_move)
         starting_point=copy.copy(self.loc)
-        #  closest_point=copy.copy(starting_point)
         closest_d,xd,yd=self.get_distance()
         current_d=copy.copy(closest_d)
         self.loc+=new_move
-        #  print(closest_d)
-        #  print(new_move,self.loc)
+        #go around obstacle until encountering the m path
         while (self.regular_path[self.loc[0],self.loc[1]]!=1) or (current_d>=closest_d):
             stop=False
-            if (self.loc[0]==20) and (self.loc[1]==20):
-                print(self.regular_path[self.loc[0],self.loc[1]],current_d<closest_d)
             self.bug_path[self.loc[0],self.loc[1]]+=1
             self.bug_path_graph.append(copy.copy(self.loc))
             still_there=self.check_sides()
@@ -179,14 +186,11 @@ class Bug():
                 if (self.regular_path[self.loc[0],self.loc[1]]==1) and (current_d<closest_d):
                     stop=True
 
-
             if not stop:
                 new_move=self.check_corners()
                 self.loc+=new_move
                 current_d,xd,yd=self.get_distance()
-
         #  print(self.loc)
-        #  sys.exit()
 
     def bug1(self):
         self.loc=np.where(self.grid==5)
@@ -196,7 +200,7 @@ class Bug():
         self.bug_path[self.loc[0],self.loc[1]]+=1
         #  print(self.loc)
         d,xd,yd=self.get_distance()
-        #  print(d,xd,yd)
+        #determine movements on the grid
         if yd!=0:
             x_move=np.round(xd/yd)
         else:
@@ -208,13 +212,16 @@ class Bug():
         stop=False
         while (self.grid[self.loc[0],self.loc[1]]!=10):
             if x_move<0:
+                #if we end on the other side of target
                 points=[-1]*abs(int(x_move))
             else:
                 points=[1]*int(x_move)
             for x in points:
+                #go unless hitting an object
                 boundary=self.check_boundary(int(x),0)
                 if boundary:
                     self.boundary_follow_1(int(x),0)
+                    #get new movement on other side of object
                     d,xd,yd=self.get_distance()
                     if yd!=0:
                         x_move=np.round(xd/yd)
@@ -231,8 +238,10 @@ class Bug():
                     self.bug_path_graph.append(copy.copy(self.loc))
                     #  self.bug_path[self.loc[0],self.loc[1]]+=1
                 if self.grid[self.loc[0],self.loc[1]]==10:
+                    #stop if we've hit the goal
                     stop=True
                     break
+            #same practice for the y direction
             if y_move<0:
                 points=[-1]*abs(int(y_move))
             else:
@@ -242,7 +251,6 @@ class Bug():
                 if boundary:
                     self.boundary_follow_1(0,int(y))
                     d,xd,yd=self.get_distance()
-                    #  print(d,xd,yd)
                     if yd!=0:
                         x_move=np.round(xd/yd)
                     else:
@@ -251,7 +259,6 @@ class Bug():
                         y_move=np.round(yd/xd)
                     else:
                         y_move=int(yd)
-                    #  print(x_move,y_move)
                     break
                 else:
                     if not stop:
@@ -260,6 +267,7 @@ class Bug():
                         self.loc[1]+=int(y)
                         self.bug_path_graph.append(copy.copy(self.loc))
                     if self.grid[self.loc[0],self.loc[1]]==10:
+                        #stop if we've hit the target
                         break
 
     def bug2(self):
@@ -268,9 +276,8 @@ class Bug():
         self.bug_path_graph=[]
         self.loc=np.array([int(self.loc[0]),int(self.loc[1])])
         self.bug_path[self.loc[0],self.loc[1]]+=1
-        #  print(self.loc)
         d,xd,yd=self.get_distance()
-        #  print(d,xd,yd)
+        #get movement along the grid
         if yd!=0:
             x_move=np.round(xd/yd)
         else:
@@ -297,10 +304,10 @@ class Bug():
             for y in points:
                 loc[1]+=y
                 self.regular_path[loc[0],loc[1]]=1
-            #  print(loc)
         
         stop=False
         while (self.grid[self.loc[0],self.loc[1]]!=10):
+            #if we end on the other side of the target
             if x_move<0:
                 points=[-1]*abs(x_move)
             else:
@@ -316,6 +323,7 @@ class Bug():
                     self.bug_path_graph.append(copy.copy(self.loc))
                     #  self.bug_path[self.loc[0],self.loc[1]]+=1
                 if self.grid[self.loc[0],self.loc[1]]==10:
+                    #stop if we've hit the target
                     stop=True
                     break
             if y_move<0:
@@ -334,15 +342,18 @@ class Bug():
                         self.loc[1]+=int(y)
                         self.bug_path_graph.append(copy.copy(self.loc))
                     if self.grid[self.loc[0],self.loc[1]]==10:
+                        #stop if we've hit the target
                         stop=True
                         break
 
     def graph_path(self,sizing,problem_num):
         fig,ax=plt.subplots()
+        #graph the goal
         for x in range(self.grid.shape[0]):
             for y in range(self.grid.shape[1]):
                 if self.grid[x,y]==10:
                     ax.scatter(x,y,marker='*')
+        #graph the obstacles
         if problem_num==1:
             ob1=Rectangle((1*sizing,1*sizing),1*sizing,4*sizing)
             ob2=Rectangle((3*sizing,4*sizing),1*sizing,8*sizing)
@@ -374,6 +385,7 @@ class Bug():
             ax.add_patch(ob7)
             ax.add_patch(ob8)
             ax.add_patch(ob9)
+        #graph the path taken
         path=np.array(self.bug_path_graph)
         ax.plot(path[:,0],path[:,1],color='black')
         ax.axis('equal')
@@ -386,6 +398,7 @@ class Arm():
         ang2=np.deg2rad(ang2)
         ang3=np.deg2rad(ang3)
         #  ang4=np.deg2rad(90)
+        #rotation and tranlation matricies
         T1=np.array([[np.cos(ang1),-np.sin(ang1),0],
             [np.sin(ang1),np.cos(ang1),0],
             [0,0,1]])
@@ -404,6 +417,8 @@ class Arm():
         #  T5=np.array([[1,0,1],
         #      [0,1,0],
         #      [0,0,1]])
+
+        #getting the positions of each part of the links for graphing
         link1_base=np.array([[0],[0],[1]])
         link1_top=np.matmul(T1,np.matmul(T2,link1_base))
         link2_base=copy.copy(link1_top)
@@ -427,6 +442,7 @@ class Arm():
         plt.show()
 
     def problem8(self):
+        #setting up the specific problem
         len1=8
         len2=8
         len3=8
@@ -437,24 +453,31 @@ class Arm():
         ang1=np.linspace(0,np.pi,3000)
         ang2=np.linspace(-np.pi,np.pi,3000)
         ang3=np.linspace(-np.pi,np.pi,3000)
+        #because the problem has no analytical solution,
+        #we must interate over possibilities starting with theta 3
         for angle3 in ang3:
             for angle2 in ang2:
+                #our derived equation
                 value=len1**2+len2**2+len3**2+2*len1*len2*np.cos(angle2)+2*len2*len3* \
                         np.cos(angle3)+2*len1*len3*np.cos(angle2+angle3)-xpos**2-ypos**2
                 if abs(value)<tol:
                     for angle1 in ang1:
+                        #orginal constraint equations
                         x_value=len1*np.cos(angle1)+len2*np.cos(angle1+angle2)+len3*np.cos(angle1+angle2+angle3)
                         y_value=len1*np.sin(angle1)+len2*np.sin(angle1+angle2)+len3*np.sin(angle1+angle2+angle3)
-                        #  print(abs(x_value-xpos),abs(y_value-ypos))
+                        #adding constraints so the arm doesn't dip below the table
                         if (abs(x_value-xpos)<tol) and (abs(y_value-ypos)<tol) and (angle1+angle2>0) and (angle1+angle2<np.pi):
-                            print(angle1,angle2,angle3)
+                            #saving all configurations that reach the point
+                            #  print(angle1,angle2,angle3)
                             possible_configs.append([angle1,angle2,angle3])
         #  print(possible_configs,len(possible_configs))
         fig,ax=plt.subplots()
+        #graphing all possible solutions using kinematic equations
         for config in possible_configs:
             ang1=config[0]
             ang2=config[1]
             ang3=config[2]
+            #rotation and tranlation matricies
             T1=np.array([[np.cos(ang1),-np.sin(ang1),0],
                 [np.sin(ang1),np.cos(ang1),0],
                 [0,0,1]])
@@ -467,6 +490,8 @@ class Arm():
             T4=np.array([[1,0,len3],
                 [0,1,0],
                 [0,0,1]])
+
+            #getting the positions of each part of the links for graphing
             link1_base=np.array([[0],[0],[1]])
             link1_top=np.matmul(T1,np.matmul(T2,link1_base))
             link2_base=copy.copy(link1_top)
@@ -488,6 +513,8 @@ class Arm():
         plt.show()
 
     def inverse(self,len1,len2,len3,xpos,ypos):
+        #because the problem has no analytical solution,
+        #we must interate over possibilities starting with theta 3
         tol=0.005
         possible_configs=[]
         ang1=np.linspace(0,np.pi,1000)
@@ -495,24 +522,29 @@ class Arm():
         ang3=np.linspace(-np.pi,np.pi,1000)
         for angle3 in ang3:
             for angle2 in ang2:
+                #our derived equation
                 value=len1**2+len2**2+len3**2+2*len1*len2*np.cos(angle2)+2*len2*len3* \
                         np.cos(angle3)+2*len1*len3*np.cos(angle2+angle3)-xpos**2-ypos**2
                 if abs(value)<tol:
                     for angle1 in ang1:
+                        #orginal constraint equations
                         x_value=len1*np.cos(angle1)+len2*np.cos(angle1+angle2)+len3*np.cos(angle1+angle2+angle3)
                         y_value=len1*np.sin(angle1)+len2*np.sin(angle1+angle2)+len3*np.sin(angle1+angle2+angle3)
-                        #  print(abs(x_value-xpos),abs(y_value-ypos))
+                        #adding constraints so the arm doesn't dip below the table
                         if (abs(x_value-xpos)<tol) and (abs(y_value-ypos)<tol) and (angle1+angle2>0) and (angle1+angle2<np.pi):
-                            print(angle1,angle2,angle3)
+                            #saving all configurations that reach the point
+                            #  print(angle1,angle2,angle3)
                             possible_configs.append([angle1,angle2,angle3])
         #  print(possible_configs,len(possible_configs))
         if len(possible_configs)==0:
             print("That point isn't reachable")
         fig,ax=plt.subplots()
+        #graphing all possible solutions using kinematic equations
         for config in possible_configs:
             ang1=config[0]
             ang2=config[1]
             ang3=config[2]
+            #rotation and tranlation matricies
             T1=np.array([[np.cos(ang1),-np.sin(ang1),0],
                 [np.sin(ang1),np.cos(ang1),0],
                 [0,0,1]])
@@ -525,6 +557,8 @@ class Arm():
             T4=np.array([[1,0,len3],
                 [0,1,0],
                 [0,0,1]])
+
+            #getting the positions of each part of the links for graphing
             link1_base=np.array([[0],[0],[1]])
             link1_top=np.matmul(T1,np.matmul(T2,link1_base))
             link2_base=copy.copy(link1_top)
@@ -547,6 +581,7 @@ class Arm():
 
 
 def make_grid_world(problem,sizing):
+    #making the grid with our obstacles
     if problem==1:
         grid=np.zeros((15*sizing,15*sizing))
         grid[10*sizing,10*sizing]=10
