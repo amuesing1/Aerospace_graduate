@@ -395,7 +395,7 @@ class Arm():
         idx1 = (np.abs(self.ang1_values - start[0])).argmin()
         idy1 = (np.abs(self.ang2_values - start[1])).argmin()
         idx2 = (np.abs(self.ang1_values - finish[0])).argmin()
-        idy2 = (np.abs(self.ang2_values - finish[2])).argmin()
+        idy2 = (np.abs(self.ang2_values - finish[1])).argmin()
         self.grid[idx1,idy1]=-1
         self.grid[idx2,idy2]=2
         print(self.ang1_values[idx1],self.ang2_values[idy1])
@@ -406,17 +406,24 @@ class Arm():
         if np.sqrt(xpos**2+ypos**2)>(len1+len2):
             print("Can't get there")
             return 0
-        start=(1/(2*len1*len2))*((xpos**2+ypos**2)-(len1**2-len2**2))
-        if start>1:
-            while start>1:
-                start-=1
-        elif start<-1:
-            while start<-1:
-                start+=1
-        theta2=np.arccos(start)
-        theta1_1=np.arccos((1/(xpos**2+ypos**2))*(xpos*(len1+len2*np.cos(theta2))+ypos*len2*np.sqrt(1-np.cos(theta2)**2)))
-        theta1_2=np.arccos((1/(xpos**2+ypos**2))*(xpos*(len1+len2*np.cos(theta2))-ypos*len2*np.sqrt(1-np.cos(theta2)**2)))
-        return [theta2,theta1_1,theta1_2]
+        x=(xpos**2+ypos**2-len1**2-len2**2)/(2*len1*len2)
+        y=np.sqrt(1-x**2)
+        theta2=np.arctan2([y,-y],[x,x])
+        theta1=np.arctan2(ypos,xpos)-np.arctan2(len2*np.sin(theta2),len1+len2*np.cos(theta2))
+        #  print(theta2)
+        #  print(theta1)
+        #  sys.exit()
+        #  start=(1/(2*len1*len2))*((xpos**2+ypos**2)-(len1**2-len2**2))
+        #  if start>1:
+        #      while start>1:
+        #          start-=1
+        #  elif start<-1:
+        #      while start<-1:
+        #          start+=1
+        #  theta2=np.arccos(start)
+        #  theta1_1=np.arccos((1/(xpos**2+ypos**2))*(xpos*(len1+len2*np.cos(theta2))+ypos*len2*np.sqrt(1-np.cos(theta2)**2)))
+        #  theta1_2=np.arccos((1/(xpos**2+ypos**2))*(xpos*(len1+len2*np.cos(theta2))-ypos*len2*np.sqrt(1-np.cos(theta2)**2)))
+        return [theta1[0],theta2[0],theta1[1],theta2[1]]
 
     def graph_arm(self,path):
         #take path_graph, convert to link points, graph most of them
@@ -504,10 +511,10 @@ if __name__ == '__main__':
         print('Path W2 Length:',np.sum(planner.path)/sizing)
         planner.graph_path(sizing,2)
     elif args.problem==7:
-        sizing=750
+        sizing=500
         a=Arm()
-        config_1=a.inverse(1,1,1.4,-0.3)
-        config_2=a.inverse(1,1,1,0.5)
+        config_1=a.inverse(1,1,2,0)
+        config_2=a.inverse(1,1,-2,0)
         print(config_1,config_2)
         a.c_space(1,1,sizing)
         a.set_goals(config_1,config_2)
