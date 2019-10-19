@@ -106,50 +106,21 @@ class WaveFront():
             self.path[self.loc[0],self.loc[1]]+=1
             self.path_graph.append(copy.copy(self.loc))
 
-    def graph_path(self,sizing,problem_num):
+    def graph_path(self,sizing,path=True):
         fig,ax=plt.subplots()
         #graph the goal
         for x in range(self.grid.shape[0]):
             for y in range(self.grid.shape[1]):
                 if self.grid[x,y]==2:
                     ax.scatter(x,y,marker='*')
-        #graph the obstacles
-        if problem_num==1:
-            ob1=Rectangle((1*sizing,1*sizing),1*sizing,4*sizing)
-            ob2=Rectangle((3*sizing,4*sizing),1*sizing,8*sizing)
-            ob3=Rectangle((3*sizing,12*sizing),9*sizing,1*sizing)
-            ob4=Rectangle((12*sizing,5*sizing),1*sizing,8*sizing)
-            ob5=Rectangle((6*sizing,5*sizing),6*sizing,1*sizing)
-            ax.add_patch(ob1)
-            ax.add_patch(ob2)
-            ax.add_patch(ob3)
-            ax.add_patch(ob4)
-            ax.add_patch(ob5)
-        elif problem_num==2:
-            shift=7
-            ob1=Rectangle(((-6+shift)*sizing,(-6+shift)*sizing),31*sizing,1*sizing)
-            ob2=Rectangle(((-6+shift)*sizing,(5+shift)*sizing),36*sizing,1*sizing)
-            ob3=Rectangle(((-6+shift)*sizing,(-5+shift)*sizing),1*sizing,10*sizing)
-            ob4=Rectangle(((4+shift)*sizing,(-5+shift)*sizing),1*sizing,6*sizing)
-            ob5=Rectangle(((9+shift)*sizing,(0+shift)*sizing),1*sizing,5*sizing)
-            ob6=Rectangle(((14+shift)*sizing,(-5+shift)*sizing),1*sizing,6*sizing)
-            ob7=Rectangle(((19+shift)*sizing,(0+shift)*sizing),1*sizing,5*sizing)
-            ob8=Rectangle(((24+shift)*sizing,(-5+shift)*sizing),1*sizing,6*sizing)
-            ob9=Rectangle(((29+shift)*sizing,(0+shift)*sizing),1*sizing,5*sizing)
-            ax.add_patch(ob1)
-            ax.add_patch(ob2)
-            ax.add_patch(ob3)
-            ax.add_patch(ob4)
-            ax.add_patch(ob5)
-            ax.add_patch(ob6)
-            ax.add_patch(ob7)
-            ax.add_patch(ob8)
-            ax.add_patch(ob9)
+        points=np.where(self.grid==1)
+        ax.scatter(points[0],points[1],marker='s',color='C0')
         #graph the path taken
-        path=np.array(self.path_graph)
-        ax.plot(path[:,0],path[:,1],color='black')
+        if path:
+            path=np.array(self.path_graph)
+            ax.plot(path[:,0],path[:,1],color='black')
         ax.axis('equal')
-        ax.axis('off')
+        #  ax.axis('off')
         plt.show()
 
 class Potential():
@@ -385,11 +356,19 @@ class Arm():
     def c_space(self,len1,len2,sizing):
         self.ang1_values=np.linspace(-2*np.pi,2*np.pi,sizing)
         self.ang2_values=np.linspace(-2*np.pi,2*np.pi,sizing)
+        points=np.linspace(-(len1+len2),len1+len2,sizing)
         self.grid=np.zeros((sizing,sizing))
         self.reference=np.zeros((sizing,sizing,4))
         for i in tqdm(range(sizing),ncols=100):
             for j in range(sizing):
-                self.reference[i,j,:]=self.kinematics(len1,len2,self.ang1_values[i],self.ang2_values[j])
+                position=self.kinematics(len1,len2,self.ang1_values[i],self.ang2_values[j])
+                idx1=(np.abs(points - position[0])).argmin()
+                idy1=(np.abs(points - position[1])).argmin()
+                idx2=(np.abs(points - position[2])).argmin()
+                idy2=(np.abs(points - position[3])).argmin()
+                if (self.grid_pos[idx1,idy1]==1) or (self.grid_pos[idx2,idy2]==1):
+                    self.grid[i,j]=1
+                self.reference[i,j,:]=position
 
     def set_goals(self,start,finish):
         idx1 = (np.abs(self.ang1_values - start[0])).argmin()
@@ -398,9 +377,6 @@ class Arm():
         idy2 = (np.abs(self.ang2_values - finish[1])).argmin()
         self.grid[idx1,idy1]=-1
         self.grid[idx2,idy2]=2
-        print(self.ang1_values[idx1],self.ang2_values[idy1])
-        print(self.ang1_values[idx2],self.ang2_values[idy2])
-        #  print(idx,idy)
 
     def inverse(self,len1,len2,xpos,ypos):
         if np.sqrt(xpos**2+ypos**2)>(len1+len2):
@@ -410,22 +386,26 @@ class Arm():
         y=np.sqrt(1-x**2)
         theta2=np.arctan2([y,-y],[x,x])
         theta1=np.arctan2(ypos,xpos)-np.arctan2(len2*np.sin(theta2),len1+len2*np.cos(theta2))
-        #  print(theta2)
-        #  print(theta1)
-        #  sys.exit()
-        #  start=(1/(2*len1*len2))*((xpos**2+ypos**2)-(len1**2-len2**2))
-        #  if start>1:
-        #      while start>1:
-        #          start-=1
-        #  elif start<-1:
-        #      while start<-1:
-        #          start+=1
-        #  theta2=np.arccos(start)
-        #  theta1_1=np.arccos((1/(xpos**2+ypos**2))*(xpos*(len1+len2*np.cos(theta2))+ypos*len2*np.sqrt(1-np.cos(theta2)**2)))
-        #  theta1_2=np.arccos((1/(xpos**2+ypos**2))*(xpos*(len1+len2*np.cos(theta2))-ypos*len2*np.sqrt(1-np.cos(theta2)**2)))
         return [theta1[0],theta2[0],theta1[1],theta2[1]]
 
-    def graph_arm(self,path):
+    def make_obstacles(self,sizing,len1,len2,obstacles):
+        #obs is a list of obs
+        #check the length of each obs (3 or 4)
+        #construct obs like the make grid world
+        self.grid_pos=np.zeros((sizing,sizing))
+        points=np.linspace(-(len1+len2),len1+len2,sizing)
+        for obs in obstacles:
+            idx=[]
+            idy=[]
+            for vert in obs:
+                #  print(np.abs(points-vert[0]))
+                idx.append(np.abs(points - vert[0]).argmin())
+                idy.append(np.abs(points - vert[1]).argmin())
+            if len(obs)==4:
+                self.grid_pos[idx[0]:idx[2],idy[0]:idy[2]]=1
+
+
+    def graph_workspace(self,obstacles,path=None):
         #take path_graph, convert to link points, graph most of them
         link1=np.zeros((len(path),2))
         link2=np.zeros((len(path),2))
@@ -437,9 +417,30 @@ class Arm():
 
         #  print(link1)
         fig,ax=plt.subplots()
-        for i in range(len(path)):
+        for i in range(len(path))[::5]:
+            ax.set_xlim(-3,3)
+            ax.set_ylim(-1,2.5)
             ax.plot([0,link1[i,0]],[0,link1[i,1]],color='C0')
             ax.plot([link1[i,0],link2[i,0]],[link1[i,1],link2[i,1]],color='C1')
+            for obs in obstacles:
+                ob=plt.Polygon(obs)
+                #  ob=Rectangle((obs[0][0],obs[0][1]),obs[2][0]-obs[0][0],obs[2][1]-obs[0][1])
+                ax.add_patch(ob)
+            ax.axis('equal')
+            plt.pause(0.05)
+            plt.cla()
+
+
+        for i in range(len(path))[::5]:
+            ax.set_xlim(-3,3)
+            ax.set_ylim(-1,2.5)
+            ax.plot([0,link1[i,0]],[0,link1[i,1]],color='C0')
+            ax.plot([link1[i,0],link2[i,0]],[link1[i,1],link2[i,1]],color='C1')
+
+        for obs in obstacles:
+            ob=plt.Polygon(obs)
+            #  ob=Rectangle((obs[0][0],obs[0][1]),obs[2][0]-obs[0][0],obs[2][1]-obs[0][1])
+            ax.add_patch(ob)
         ax.axis('equal')
         plt.show()
 
@@ -504,22 +505,72 @@ if __name__ == '__main__':
         planner.construct_path()
         planner.move_to_path()
         print('Path W1 Length:',np.sum(planner.path)/sizing)
-        planner.graph_path(sizing,1)
+        planner.graph_path(sizing)
         planner=WaveFront(grid2)
         planner.construct_path()
         planner.move_to_path()
         print('Path W2 Length:',np.sum(planner.path)/sizing)
-        planner.graph_path(sizing,2)
+        planner.graph_path(sizing)
     elif args.problem==7:
+        method=input('Part a, b, or do you want to type a ton of points? ')
         sizing=500
         a=Arm()
-        config_1=a.inverse(1,1,2,0)
-        config_2=a.inverse(1,1,-2,0)
-        print(config_1,config_2)
-        a.c_space(1,1,sizing)
-        a.set_goals(config_1,config_2)
-        planner=WaveFront(a.grid)
-        planner.construct_path()
-        planner.move_to_path()
-        #  planner.graph_path(sizing,3)
-        a.graph_arm(planner.path_graph)
+        if method=='a':
+            #triangle bullshit goes here
+
+            len1=1
+            len2=1
+            obstacles=[[[-.25,1.1],[-.25,2],[.25,2],[.25,1.1]],
+                    [[-2,-2],[-2,-1.8],[2,-1.8],[2,-2]]]
+            a.make_obstacles(sizing,len1,len2,obstacles)
+            a.c_space(len1,len2,sizing)
+            planner=WaveFront(a.grid)
+            planner.construct_path()
+            planner.graph_path(sizing,path=False)
+            a.graph_workspace(obstacles)
+
+            a=Arm()
+            obstacles=[[[-.25,1.1],[-.25,2],[.25,2],[.25,1.1]],
+                    [[-2,-.5],[-2,-.3],[2,-.3],[2,-.5]]]
+            a.make_obstacles(sizing,len1,len2,obstacles)
+            a.c_space(len1,len2,sizing)
+            planner=WaveFront(a.grid)
+            planner.construct_path()
+            planner.graph_path(sizing,path=False)
+            a.graph_workspace(obstacles)
+        elif method=='b':
+            len1=1
+            len2=1
+            config_1=a.inverse(len1,len2,2,0)
+            config_2=a.inverse(len1,len2,-2,0)
+            obstacles=[[[-.25,1.1],[-.25,2],[.25,2],[.25,1.1]],
+                    [[-2,-.5],[-2,-.3],[2,-.3],[2,-.5]]]
+            a.make_obstacles(sizing,len1,len2,obstacles)
+            a.c_space(len1,len2,sizing)
+            a.set_goals(config_1,config_2)
+            planner=WaveFront(a.grid)
+            planner.construct_path()
+            planner.move_to_path()
+            planner.graph_path(sizing)
+            a.graph_workspace(obstacles,planner.path_graph)
+        else:
+            len1=float(input('Length of link 1: '))
+            len2=float(input('Length of link 2: '))
+            obstacles=[]
+            num_obs=int(input('How many obstacles do you want? '))
+            for i in range(num_obs):
+                points=[]
+                num_points=int(input('How many points on this polygon? '))
+                if num_points>4:
+                    print("Don't make this too complicated")
+                    sys.exit()
+                elif num_points<3:
+                    print("Can't make a shape")
+                    sys.exit()
+                for point in range(num_points):
+                    x=float(input('X: '))
+                    y=float(input('Y: '))
+                    points.append([x,y])
+                obstacles.append(points)
+            print(obstacles)
+
