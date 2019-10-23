@@ -5,6 +5,8 @@ import argparse
 import sys
 import copy
 from tqdm import tqdm
+import mpl_toolkits.mplot3d as a3
+import pylab as pl
 
 np.set_printoptions(threshold=np.inf)
 
@@ -106,7 +108,7 @@ class WaveFront():
             self.path[self.loc[0],self.loc[1]]+=1
             self.path_graph.append(copy.copy(self.loc))
 
-    def graph_path(self,sizing,path=True):
+    def graph_path(self,sizing,ticks,path=True):
         fig,ax=plt.subplots()
         #graph the goal
         for x in range(self.grid.shape[0]):
@@ -120,6 +122,12 @@ class WaveFront():
             path=np.array(self.path_graph)
             ax.plot(path[:,0],path[:,1],color='black')
         ax.axis('equal')
+        x_size=sizing/(max(ticks[0])-min(ticks[0]))
+        y_size=sizing/(max(ticks[1])-min(ticks[1]))
+        ax.set_xticks((ticks[0]-min(ticks[0]))*x_size)
+        ax.set_yticks((ticks[1]-min(ticks[1]))*y_size)
+        ax.set_xticklabels(ticks[0])
+        ax.set_yticklabels(ticks[1])
         #  ax.axis('off')
         plt.show()
 
@@ -359,8 +367,12 @@ class Arm():
         points=np.linspace(-(len1+len2),len1+len2,sizing)
         self.grid=np.zeros((sizing,sizing))
         self.reference=np.zeros((sizing,sizing,4))
+        ang1_bad=[]
         for i in tqdm(range(sizing),ncols=100):
             for j in range(sizing):
+                if i in ang1_bad:
+                    self.grid[i,j]=1
+                    continue
                 position=self.kinematics(len1,len2,self.ang1_values[i],self.ang2_values[j])
                 #make ten more points on the arm to check
                 arm1_points_x=np.linspace(0,position[0],5)
@@ -381,6 +393,8 @@ class Arm():
                         break
                     if (self.grid_pos[idx1[k],idy1[k]]==1) or (self.grid_pos[idx2[k],idy2[k]]==1):
                         self.grid[i,j]=1
+                    if (self.grid_pos[idx1[k],idy1[k]]==1):
+                        ang1_bad.append(i)
                 self.reference[i,j,:]=position
 
     def set_goals(self,start,finish):
@@ -446,27 +460,24 @@ class Arm():
 
             #  print(link1)
             for i in range(len(path))[::5]:
-                ax.set_xlim(-3,3)
-                ax.set_ylim(-2,2.5)
                 ax.plot([0,link1[i,0]],[0,link1[i,1]],color='C0')
                 ax.plot([link1[i,0],link2[i,0]],[link1[i,1],link2[i,1]],color='C1')
                 for obs in obstacles:
                     ob=plt.Polygon(obs)
                     ax.add_patch(ob)
                 ax.axis('equal')
+                ax.set_xlim(-3,3)
+                ax.set_ylim(-2,2.5)
                 plt.pause(0.05)
                 plt.cla()
 
 
             for i in range(len(path))[::5]:
-                ax.set_xlim(-3,3)
-                ax.set_ylim(-2,2.5)
                 ax.plot([0,link1[i,0]],[0,link1[i,1]],color='C0')
                 ax.plot([link1[i,0],link2[i,0]],[link1[i,1],link2[i,1]],color='C1')
 
         for obs in obstacles:
             ob=plt.Polygon(obs)
-            #  ob=Rectangle((obs[0][0],obs[0][1]),obs[2][0]-obs[0][0],obs[2][1]-obs[0][1])
             ax.add_patch(ob)
         ax.axis('equal')
         ax.set_xlim(-3,3)
@@ -508,7 +519,8 @@ def make_grid_world(problem,sizing):
     return grid
 
 def problem2():
-    fig,ax=plt.subplots()
+    #  fig,ax=plt.subplots()
+    ax=a3.Axes3D(pl.figure())
     V=np.array([[0.0,0.0],[1.0,2.0],[0.0,2.0]])
     thetas=np.linspace(0,2*np.pi,1000)
     #  thetas=[0]
@@ -569,11 +581,15 @@ def problem2():
         i=0
         j=0
         points=[]
+        x_points=[]
+        y_points=[]
         while (i!=4) and (j!=4):
             x=V[i][0]+W[j][0]
             y=V[i][1]+W[j][1]
             #  print(x,y,i,j)
-            points.append([x,y])
+            #  points.append([x,y])
+            x_points.append(x)
+            y_points.append(y)
             if angs1[i]<angs2[j]:
                 i+=1
             elif angs1[i]>angs2[j]:
@@ -581,12 +597,23 @@ def problem2():
             else:
                 i+=1
                 j+=1
-        ob=plt.Polygon(points)
-        ax.add_patch(ob)
-    ob=plt.Polygon(V,color='C1')
-    ax.add_patch(ob)
-    ax.axis('equal')
+        z_points=[theta]*4
+        x_points=np.array(x_points[:-1])
+        y_points=np.array(y_points[:-1])
+        z_points=np.array(z_points)
+        vtx=[list(zip(x_points,y_points,z_points))]
+        ob=a3.art3d.Poly3DCollection(vtx)
+        ax.add_collection(ob)
+        #  ob=plt.Polygon(points)
+        #  ax.add_patch(ob)
+    #  ob=plt.Polygon(V,color='C1')
+    #  ax.add_patch(ob)
+    #  ax.axis('equal')
+    ax.set_xlim(-4,4)
+    ax.set_ylim(-4,4)
+    ax.set_zlim(0,2*np.pi)
     plt.show()
+        #  sys.exit()
 
 
 if __name__ == '__main__':
@@ -611,19 +638,25 @@ if __name__ == '__main__':
         pot.graph_path(sizing,1)
         #  pot.graph_path(2,sizing)
     elif args.problem==6:
-        sizing=4
+        sizing=10
         grid1=make_grid_world(1,sizing)
         grid2=make_grid_world(2,sizing)
         planner=WaveFront(grid1)
         planner.construct_path()
         planner.move_to_path()
         print('Path W1 Length:',np.sum(planner.path)/sizing)
-        planner.graph_path(sizing)
+        ticks=[]
+        ticks.append(np.linspace(0,15,5))
+        ticks.append(np.linspace(0,15,5))
+        planner.graph_path(sizing*15,ticks)
         planner=WaveFront(grid2)
         planner.construct_path()
         planner.move_to_path()
         print('Path W2 Length:',np.sum(planner.path)/sizing)
-        planner.graph_path(sizing)
+        ticks=[]
+        ticks.append(np.linspace(-7,35,5))
+        ticks.append(np.linspace(-7,35,13))
+        planner.graph_path(sizing*43,ticks)
     elif args.problem==7:
         method=input('Part a, b, or do you want to type a ton of points? ')
         sizing=500
@@ -637,7 +670,10 @@ if __name__ == '__main__':
             a.c_space(len1,len2,sizing)
             planner=WaveFront(a.grid)
             #  planner.construct_path()
-            planner.graph_path(sizing,path=False)
+            ticks=[]
+            ticks.append(np.linspace(-180,180,10))
+            ticks.append(np.linspace(-180,180,10))
+            planner.graph_path(sizing,ticks,path=False)
             a.graph_workspace(obstacles)
 
             obstacles=[[[-.25,1.1],[-.25,2],[.25,2],[.25,1.1]],
@@ -646,7 +682,7 @@ if __name__ == '__main__':
             a.c_space(len1,len2,sizing)
             planner=WaveFront(a.grid)
             #  planner.construct_path()
-            planner.graph_path(sizing,path=False)
+            planner.graph_path(sizing,ticks,path=False)
             a.graph_workspace(obstacles)
 
             a=Arm()
@@ -656,7 +692,7 @@ if __name__ == '__main__':
             a.c_space(len1,len2,sizing)
             planner=WaveFront(a.grid)
             #  planner.construct_path()
-            planner.graph_path(sizing,path=False)
+            planner.graph_path(sizing,ticks,path=False)
             a.graph_workspace(obstacles)
         elif method=='b':
             len1=1
@@ -671,7 +707,10 @@ if __name__ == '__main__':
             planner=WaveFront(a.grid)
             planner.construct_path()
             planner.move_to_path()
-            planner.graph_path(sizing)
+            ticks=[]
+            ticks.append(np.linspace(-180,180,10))
+            ticks.append(np.linspace(-180,180,10))
+            planner.graph_path(sizing,ticks)
             a.graph_workspace(obstacles,planner.path_graph)
         else:
             len1=float(input('Length of link 1: '))
