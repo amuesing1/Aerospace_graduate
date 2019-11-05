@@ -73,7 +73,7 @@ class A_star():
         pass
 
 class PRM():
-    def solve(self,n,r,obs,x_dim,y_dim,start,end):
+    def solve(self,n,r,obs,x_dim,y_dim,start,end,smoothing=False):
         V=np.array([start,end])
         #  print(V)
         V=np.append(V,self.sample_space(n,obs,x_dim,y_dim),axis=0)
@@ -85,8 +85,9 @@ class PRM():
                 if list(point)==list(other):
                     continue
                 if (self.d(point,other)<r) and not (self.edge_exists(point,other,edges)):
-                    edges.append([list(point),list(other)])
-                    W.append(self.d(point,other))
+                    if not self.edge_collision(point,other,obs):
+                        edges.append([list(point),list(other)])
+                        W.append(self.d(point,other))
         #  print(edges)
         a=A_star()
         h=[0]*len(V)
@@ -94,6 +95,8 @@ class PRM():
         #  print(V)
         #  sys.exit()
         path=a.construct_path([V,edges,W],start,end,h)
+        if smoothing:
+            path=self.smooth_path(path,obs)
         self.plot_path(obs,x_dim,y_dim,start,end,V,edges,path)
 
     def sample_space(self,n,obs,x_dim,y_dim):
@@ -143,8 +146,26 @@ class PRM():
                 return 1
         return 0
 
-    def local_path(self,r,obs):
-        pass
+    def edge_collision(self,point1,point2,obs):
+        edge_points_x=np.linspace(point1[0],point2[0])
+        edge_points_y=np.linspace(point1[1],point2[1])
+        for i in range(len(edge_points_x)):
+            if self.check_collision([edge_points_x[i],edge_points_y[i]],obs):
+                return 1
+        return 0
+
+    def smooth_path(self,path,obs):
+        for n in range(100):
+            sam=[0,0]
+            while sam[0]==sam[1]:
+                sam=np.random.randint(len(path),size=2)
+            if self.edge_collision(path[sam[0]],path[sam[1]],obs):
+                continue
+            else:
+                max_ind=max(sam)
+                min_ind=min(sam)
+                del path[min_ind+1:max_ind]
+        return path
 
     def plot_path(self,obs,x_dim,y_dim,start,end,V,edges,path):
         fig,ax=plt.subplots()
@@ -186,7 +207,7 @@ def problem1():
 def problem2():
     p=PRM()
     obs1=[[[3.5,0.5],[3.5,1.5],[4.5,1.5],[4.5,0.5]],[[6.5,-1.5],[6.5,-0.5],[7.5,-0.5],[7.5,-1.5]]]
-    p.solve(200,1,obs1,[-1,11],[-3,3],[0,0],[10,0])
+    p.solve(200,1,obs1,[-1,11],[-3,3],[0,0],[10,0],smoothing=True)
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser()
