@@ -108,7 +108,7 @@ class PRM():
         if self.path==1:
             return 0
         if smoothing:
-            self.path=self.smooth_path(path,obs)
+            self.path=self.smooth_path(self.path,obs)
         return 1
 
     def sample_space(self,n,obs,x_dim,y_dim):
@@ -148,17 +148,6 @@ class PRM():
     def d(self,point1,point2):
         return np.sqrt((point1[0]-point2[0])**2+(point1[1]-point2[1])**2)
 
-    #  def edge_exists(self,point1,point2,edges):
-    #      #  print(edges)
-    #      for edge in edges:
-    #          #  print(edge[0],point1)
-    #          if (list(point1)==edge[0]) and (list(point2)==edge[1]):
-    #              return 1
-    #              print('yes')
-    #          if (list(point1)==edge[1]) and (list(point2)==edge[0]):
-    #              return 1
-    #      return 0
-
     def edge_collision(self,point1,point2,obs):
         edge_points_x=np.linspace(point1[0],point2[0])
         edge_points_y=np.linspace(point1[1],point2[1])
@@ -181,6 +170,9 @@ class PRM():
         return path
 
     def plot_path(self,obs,x_dim,y_dim,start,end):
+        if self.path==1:
+            print("No path was found")
+            return 0
         fig,ax=plt.subplots()
         for obstacle in obs:
             ob=plt.Polygon(obstacle,color='k')
@@ -221,53 +213,114 @@ def problem1():
     #  a.plot_path()
 
 def problem2():
+    def run_sims(x_dim,y_dim,start,end,obs,smooth,problem_name):
+        n=[200,200,200,200,500,500,500,500]
+        r=[.5,1,1.5,2,.5,1,1.5,2]
+        labels=list(zip(n,r))
+
+        all_sol=[]
+        all_paths=[]
+        all_times=[]
+        for i in range(len(n)):
+            print(n[i],r[i])
+            path_lengths=[np.nan]*num_sam
+            times=[np.nan]*num_sam
+            success=0
+            for j in tqdm(range(num_sam),ncols=100):
+                start_time=time.time()
+                result=p.solve(n[i],r[i],obs,x_dim,y_dim,start,end,smoothing=smooth)
+                success+=result
+                times[j]=time.time()-start_time
+                if result==1:
+                    path_length=0
+                    for k in range(1,len(p.path)):
+                        path_length+=p.d(p.path[k-1],p.path[k])
+                    path_lengths[j]=path_length
+            if np.isnan(np.nanmean(path_lengths)):
+                path_lengths_clean=[0]*num_sam
+            path_lengths_clean=[x for x in path_lengths if not np.isnan(x)]
+            all_sol.append(success/num_sam)
+            all_paths.append(path_lengths_clean)
+            all_times.append(times)
+
+        plt.figure()
+        plt.bar(range(len(n)),all_sol)
+        plt.xticks(range(len(n)),labels)
+        plt.title("Success Rates "+problem_name)
+        plt.ylabel("Percent Success Rate")
+        plt.xlabel("(n,r)")
+
+        plt.figure()
+        plt.boxplot(all_paths)
+        plt.xticks(range(1,len(n)+1),labels)
+        plt.title("Path Lengths "+problem_name)
+        plt.ylabel("Length")
+        plt.xlabel("(n,r)")
+
+        plt.figure()
+        plt.boxplot(all_times)
+        plt.xticks(range(1,len(n)+1),labels)
+        plt.title("Computation Times "+problem_name)
+        plt.ylabel("Time (s)")
+        plt.xlabel("(n,r)")
+
+        plt.show()
+
     #part a
     #part i
     p=PRM()
+    num_sam=3
     x_dim=[-1,11]
     y_dim=[-3,3]
     start=[0,0]
     end=[10,0]
     obs1=[[[3.5,0.5],[3.5,1.5],[4.5,1.5],[4.5,0.5]],[[6.5,-1.5],[6.5,-0.5],[7.5,-0.5],[7.5,-1.5]]]
-    p.solve(200,1,obs1,x_dim,y_dim,start,end)
-    #  p.plot_path(obs1,x_dim,y_dim,start,end)
-    #  sys.exit()
+    solution=0
+    while solution==0:
+        solution=p.solve(200,1,obs1,x_dim,y_dim,start,end)
+    p.plot_path(obs1,x_dim,y_dim,start,end)
 
     #part ii
-    n=[200,200,200,200,500,500,500,500]
-    r=[.5,1,1.5,2,.5,1,1.5,2]
-    #  n=[200]
-    #  r=[2]
-    all_sol=[]
-    all_paths=[]
-    all_times=[]
-    num_sam=5
-    for i in range(len(n)):
-        path_lengths=[np.nan]*num_sam
-        times=[np.nan]*num_sam
-        for j in tqdm(range(num_sam),ncols=100):
-            start_time=time.time()
-            result=p.solve(n[i],r[i],obs1,x_dim,y_dim,start,end)
-            times[j]=time.time()-start_time
-            if result==1:
-                path_length=0
-                for k in range(1,len(p.path)):
-                    path_length+=p.d(p.path[k-1],p.path[k])
-                path_lengths[j]=path_length
-        if np.isnan(np.nanmean(path_lengths)):
-            path_lengths_clean=[0]*num_sam
-        print(np.nanmean(path_lengths))
-        print(np.nanmean(times))
-        path_lengths_clean=[x for x in path_lengths if not np.isnan(x)]
-        all_paths.append(path_lengths_clean)
-        all_times.append(times)
+    run_sims(x_dim,y_dim,start,end,obs1,False,"HW2 5a")
+    #part iv
+    run_sims(x_dim,y_dim,start,end,obs1,True,"HW2 5a (Smooth)")
 
-    plt.figure()
-    plt.boxplot(all_paths)
+    #part b
+    x_dim=[-1,13]
+    y_dim=[-1,13]
+    start=[0,0]
+    end=[10,10]
+    obs2=[[[1,1],[2,1],[2,5],[1,5]],[[3,4],[4,4],[4,12],[3,12]],
+            [[3,12],[12,12],[12,13],[3,13]],[[12,5],[13,5],[13,13],[12,13]],
+            [[6,5],[12,5],[12,6],[6,6]]]
+    #part i
+    solution=0
+    while solution==0:
+        solution=p.solve(200,2,obs2,x_dim,y_dim,start,end)
+    p.plot_path(obs2,x_dim,y_dim,start,end)
+    #part ii
+    run_sims(x_dim,y_dim,start,end,obs2,False,"HW1 9 W1")
+    #part iv
+    run_sims(x_dim,y_dim,start,end,obs2,True,"HW1 9 W1 (Smooth)")
 
-    plt.figure()
-    plt.boxplot(all_times)
-    #  plt.show()
+    x_dim=[-6,36]
+    y_dim=[-6,6]
+    start=[0,0]
+    end=[35,0]
+    obs3=[[[-6,-6],[25,-6],[25,-5],[-6,-5]],[[-6,5],[30,5],[30,6],[-6,6]],
+            [[-6,5],[30,5],[30,6],[-6,6]],[[-6,-5],[-5,-5],[-5,5],[-6,5]],
+            [[4,-5],[5,-5],[5,1],[4,1]],[[9,0],[10,0],[10,5],[9,5]],
+            [[14,-5],[15,-5],[15,1],[14,1]],[[19,0],[20,0],[20,5],[19,5]],
+            [[24,-5],[25,-5],[25,1],[24,1]],[[29,0],[30,0],[30,5],[29,5]]]
+    #part i
+    solution=0
+    while solution==0:
+        solution=p.solve(200,2,obs1,x_dim,y_dim,start,end)
+    p.plot_path(obs3,x_dim,y_dim,start,end)
+    #part ii
+    run_sims(x_dim,y_dim,start,end,obs3,False,"HW1 9 W2")
+    #part iv
+    run_sims(x_dim,y_dim,start,end,obs3,True,"HW1 9 W2 (Smooth)")
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser()
