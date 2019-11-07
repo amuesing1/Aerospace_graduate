@@ -27,6 +27,7 @@ class A_star():
         g_score[V.index(start)]=0
         f_score[V.index(start)]=h[V.index(start)]
 
+        iterations=0
         while len(open_set)>0:
             f_min=np.inf
             for node in open_set:
@@ -44,8 +45,10 @@ class A_star():
                     total_path.insert(0,list(current))
                 if debug:
                     print("We did it",total_path)
+                    print(iterations)
                 return total_path
 
+            iterations+=1
             #  print(current,f_score,g_score,came_from,open_set)
             open_set.remove(current)
             neighbors=[]
@@ -151,9 +154,23 @@ class PRM():
     def edge_collision(self,point1,point2,obs):
         edge_points_x=np.linspace(point1[0],point2[0])
         edge_points_y=np.linspace(point1[1],point2[1])
-        for i in range(len(edge_points_x)):
-            if self.check_collision([edge_points_x[i],edge_points_y[i]],obs):
-                return 1
+        for obstacle in obs:
+            x_min=np.inf
+            x_max=-np.inf
+            y_min=np.inf
+            y_max=-np.inf
+            for point in obstacle:
+                if point[0]<x_min:
+                    x_min=point[0]
+                if point[0]>x_max:
+                    x_max=point[0]
+                if point[1]<y_min:
+                    y_min=point[1]
+                if point[1]>y_max:
+                    y_max=point[1]
+            for i in range(len(edge_points_x)):
+                if (edge_points_x[i]<x_max) and (edge_points_x[i]>x_min) and (edge_points_y[i]<y_max) and (edge_points_y[i]>y_min):
+                    return 1
         return 0
 
     def smooth_path(self,path,obs):
@@ -207,9 +224,9 @@ def problem1():
     start='s'
     end='e'
     a=A_star()
-    a.construct_path([V,E,W],start,end,h)
+    a.construct_path([V,E,W],start,end,h,debug=True)
     h=[0 for x in h]
-    a.construct_path([V,E,W],start,end,h)
+    a.construct_path([V,E,W],start,end,h,debug=True)
     #  a.plot_path()
 
 def problem2():
@@ -269,7 +286,7 @@ def problem2():
     #part a
     #part i
     p=PRM()
-    num_sam=3
+    num_sam=50
     x_dim=[-1,11]
     y_dim=[-3,3]
     start=[0,0]
@@ -314,8 +331,11 @@ def problem2():
             [[24,-5],[25,-5],[25,1],[24,1]],[[29,0],[30,0],[30,5],[29,5]]]
     #part i
     solution=0
+    trial=0
     while solution==0:
-        solution=p.solve(200,2,obs1,x_dim,y_dim,start,end)
+        solution=p.solve(200,2,obs3,x_dim,y_dim,start,end)
+        trial+=1
+        print(trial)
     p.plot_path(obs3,x_dim,y_dim,start,end)
     #part ii
     run_sims(x_dim,y_dim,start,end,obs3,False,"HW1 9 W2")
