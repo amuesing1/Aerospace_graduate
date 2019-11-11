@@ -77,24 +77,23 @@ class A_star():
 
 class PRM():
     def solve(self,n,r,obs,x_dim,y_dim,start,end,smoothing=False):
+        # samples the space
         self.V=np.array([start,end])
-        #  print(V)
         self.V=np.append(self.V,self.sample_space(n,obs,x_dim,y_dim),axis=0)
-        #  print(V)
         self.edges=[]
+        # find a path through the space
         self.W=[]
         count1=0
         for point in self.V:
             count2=0
             for other in self.V:
+                # can't connect a point to itself
                 if list(point)==list(other):
                     continue
+                # we don't need to check points we've already looked at
                 if count2<count1:
                     count2+=1
                     continue
-                #  if self.V.index(other)<self.V.index(point):
-                #      continue
-                #  if (self.d(point,other)<r) and not (self.edge_exists(point,other,self.edges)):
                 if (self.d(point,other)<r):
                     if not self.edge_collision(point,other,obs):
                         self.edges.append([list(point),list(other)])
@@ -106,7 +105,6 @@ class PRM():
         h=[0]*len(self.V)
         self.V=[list(x) for x in self.V]
         #  print(V)
-        #  sys.exit()
         self.path=a.construct_path([self.V,self.edges,self.W],start,end,h)
         if self.path==1:
             return 0
@@ -125,6 +123,7 @@ class PRM():
             if self.check_collision(point,obs):
                 to_delete.append(count)
             count+=1
+        # delete the points inside objects
         points=np.delete(points,to_delete,0)
         return(points)
 
@@ -152,6 +151,7 @@ class PRM():
         return np.sqrt((point1[0]-point2[0])**2+(point1[1]-point2[1])**2)
 
     def edge_collision(self,point1,point2,obs):
+        # check if an edge passes through an obstacle
         edge_points_x=np.linspace(point1[0],point2[0])
         edge_points_y=np.linspace(point1[1],point2[1])
         for obstacle in obs:
@@ -174,6 +174,7 @@ class PRM():
         return 0
 
     def smooth_path(self,path,obs):
+        # path smoothing version where we randomly sample points and see if we can connect them
         for n in range(100):
             sam=[0,0]
             while sam[0]==sam[1]:
@@ -224,10 +225,11 @@ def problem1():
     start='s'
     end='e'
     a=A_star()
+    # A star version
     a.construct_path([V,E,W],start,end,h,debug=True)
+    # dijkstras
     h=[0 for x in h]
     a.construct_path([V,E,W],start,end,h,debug=True)
-    #  a.plot_path()
 
 def problem2():
     def run_sims(x_dim,y_dim,start,end,obs,smooth,problem_name):
