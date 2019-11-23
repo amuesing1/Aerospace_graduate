@@ -1,11 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from mpl_toolkits.mplot3d import Axes3D
-import argparse
 import sys
 import copy
-from tqdm import tqdm
 import time
 
 class A_star():
@@ -89,48 +86,27 @@ class TrajectoryGridSearch():
         h=[self.d(start,end_mid)]
         cells=copy.copy(self.V)
         stop=False
-        k=0
-        #  while stop==False:
-        for k in tqdm(range(7),ncols=100):
+        final=None
+        self.path=None
+        #  k=0
+        while stop==False:
             next_round=[]
-            #  print(cells)
             if len(cells)==0:
                 print("No solution")
                 return 0
-            #  cells=np.array(cells)
-            #  options=np.r_[np.random.choice(range(len(cells)),4)]
-            #  if (k%4==0) and (k!=0):
-            #      location=h.index(min(h))
-            #      cells=[self.V[location]]
-            #  cells=list(cells[options])
             for cell in cells:
-                #find all surrounding cells
-                possible_a=list(self.accel(cell[3]))
-                #  options=np.r_[np.random.choice(range(9),2)]
-                #  possible_a=list(possible_a[options])
-                #  print(np.r_[np.random.choice(range(len(possible_a)),3)])
-                #  possible_a=possible_a[np.r_[np.random.choice(range(len(possible_a)),3)]]
-                #  print(possible_a)
-                #  print(len(self.V))
-                #  print(possible_a,cell[3])
+                possible_a=list(self.accel(cell[3],cell[4]))
                 new_cells=[]
                 for a in possible_a:
                     new_point=self.dynamics(cell,a)
-                    #  print(new_point)
-                    #  sys.exit()
                     if not self.check_valid(new_point,x_dim,y_dim,theta_dim,v_dim,phi_dim,obs):
-                        #  print(new_point)
                         new_cells.append(new_point)
                         self.V.append(new_point)
                         self.edges.append([list(cell),list(new_point)])
                         self.W.append(self.d(cell,new_point))
                         h.append(self.d(new_point,end_mid))
-                #  if len(new_cells)==0:
-                #      print("No solution")
-                #      return 0
                 for new_cell in new_cells:
-                    #stop if we reach the beginning
-                    #  if self.grid[new_cell[0],new_cell[1]]==-1:
+                    #stop if we reach the goal
                     if self.check_end(new_cell,end):
                         stop=True
                         final=copy.copy(new_cell)
@@ -141,10 +117,11 @@ class TrajectoryGridSearch():
                     break
             cells=copy.copy(next_round)
             #  k+=1
-        star=A_star()
-        #  self.path=star.construct_path([self.V,self.edges,self.W],start,final,h)
+        if final:
+            print('finding path')
+            star=A_star()
+            self.path=star.construct_path([self.V,self.edges,self.W],start,final,h)
 
-    #  def dynamics(self,x,y,v,theta,phi,a,alpha):
     def dynamics(self,point,a):
         v_new=point[3]+a[0]*self.dt
         phi_new=point[4]+a[1]*self.dt
@@ -158,11 +135,6 @@ class TrajectoryGridSearch():
                 (point1[2]-point2[2])**2+(point1[3]-point2[3])**2)
 
     def check_valid(self,point,x_dim,y_dim,theta_dim,v_dim,phi_dim,obs):
-        #  print(point,x_dim,y_dim,theta_dim,v_dim,phi_dim)
-        #  if (point[1]<y_dim[0]) or (point[1]>y_dim[1]):
-        #      print(point[1])
-        #  if point[1]>0:
-        #      print(point,y_dim)
         if point in self.V:
             return 1
         if (point[0]<x_dim[0]) or (point[0]>x_dim[1]) or \
@@ -173,60 +145,128 @@ class TrajectoryGridSearch():
                     #  print(point)
                     return 1
         # the c_obs needs to be indexed by theta values
-        for obstacle in self.c_obs:
+        idx=(np.abs(self.thetas-point[2])).argmin()
+        obstacles=self.c_obs[idx,:,:]
+        for obstacle in obstacles:
             if (point[0]>obstacle[0]) and (point[0]<obstacle[1]) \
                     and (point[1]>obstacle[2]) and (point[1]<obstacle[3]):
                 return 1
         return 0
 
-    def accel(self,v):
+    def accel(self,v,phi):
         # return all 9 accelration attempts
         def make_accels(u1,u2):
-            #  accels=[0]*9
             accels=np.zeros((9,2))
             for i in range(3):
                 for j in range(3):
-                    #  accels[i*3+j]=[u1[i],u2[j]]
                     accels[i*3+j,:]=[u1[i],u2[j]]
             return accels
         u2=[-np.pi/20,0,np.pi/20]
         if v<1/6:
-            #  self.g=1
             u1=[-1/6,0,1/6]
             return make_accels(u1,u2)
         elif (v>=1/6) and (v<=2/6):
-            #  self.g=2
             u1=[-1/6,0,1/3]
             return make_accels(u1,u2)
         elif v>2/6:
-            #  self.g=3
             u1=[-1/6,0,1/2]
             return make_accels(u1,u2)
 
     def check_end(self,point,end):
         #end is [[x_min,x_max],[y_min,y_max],[theta_min,theta_max],[v_min,v_max]]
+        #  if (point[0]>end[0][0]) and (point[0]<end[0][1]) and \
+        #          (point[1]>end[1][0]) and (point[1]<end[1][1]) and \
+        #          (point[2]>end[2][0]) and (point[2]<end[2][1]) and \
+        #          (point[3]>end[3][0]) and (point[3]<end[3][1]):
+        #              return 1
+        #had to remove velocity constriant
         if (point[0]>end[0][0]) and (point[0]<end[0][1]) and \
-                (point[1]>end[1][0]) and (point[1]<end[1][1]) and \
                 (point[2]>end[2][0]) and (point[2]<end[2][1]) and \
-                (point[3]>end[3][0]) and (point[3]<end[3][1]):
+                (point[1]>end[1][0]) and (point[1]<end[1][1]):
                     return 1
         else:
             return 0
 
     def c_space_obs(self,obs):
-        self.c_obs=[]
-        for obstacle in obs:
-            new_obs=np.array(obstacle)
-            # adding two for the wrost positioning of the car in each direction
-            #  x_min=np.min(new_obs[:,0])-2
-            #  x_max=np.max(new_obs[:,0])+2
-            #  y_min=np.min(new_obs[:,1])-2
-            #  y_max=np.max(new_obs[:,1])+2
-            x_min=np.min(new_obs[:,0])
-            x_max=np.max(new_obs[:,0])
-            y_min=np.min(new_obs[:,1])
-            y_max=np.max(new_obs[:,1])
-            self.c_obs.append([x_min,x_max,y_min,y_max])
+        self.thetas=np.linspace(0,np.pi,500)
+        self.c_obs=np.zeros((len(self.thetas),len(obs),4))
+        i=0
+        angs1=[0,np.pi/2,np.pi,(3*np.pi)/2,2*np.pi]
+        for theta in self.thetas:
+            # rotate robot
+            new_robot=[0]*4
+            new_robot[0]=[0,0]
+            new_robot[1]=[2*np.cos(theta),2*np.sin(theta)]
+            new_robot[2]=[np.sqrt(5)*np.cos(theta+np.arctan(.5)),np.sqrt(5)*np.sin(theta+np.arctan(.5))]
+            new_robot[3]=[np.cos(theta+np.pi/2),np.sin(theta+np.pi/2)]
+            #  print(theta,new_robot)
+            min_point=None
+            min_y=None
+            count=0
+            for k in new_robot:
+                if min_y is not None:
+                    if k[1]<min_y:
+                        min_y=k[1]
+                        min_point=copy.copy(count)
+                    elif k[1]==min_y:
+                        if k[0]<new_robot[min_point][0]:
+                            min_point=copy.copy(count)
+                else:
+                    min_y=k[1]
+                    min_point=copy.copy(count)
+                count+=1
+            if min_point==1:
+                new_robot=np.array([new_robot[1],new_robot[2],new_robot[3],new_robot[0],new_robot[1]])
+            elif min_point==2:
+                new_robot=np.array([new_robot[2],new_robot[3],new_robot[0],new_robot[1],new_robot[2]])
+            elif min_point==3:
+                new_robot=np.array([new_robot[3],new_robot[0],new_robot[1],new_robot[2],new_robot[3]])
+            else:
+                new_robot=np.array([new_robot[0],new_robot[1],new_robot[2],new_robot[3],new_robot[0]])
+
+            W=new_robot
+            angs2=[theta+x for x in angs1]
+            j=0
+            for obstacle in obs:
+                obstacle.append(obstacle[0])
+                V=np.array(obstacle)
+                k=0
+                l=0
+                points=[]
+                x_points=[]
+                y_points=[]
+
+                #run the minkowski sum
+                while (k!=5) and (l!=5):
+                    x=V[k][0]+W[l][0]
+                    y=V[k][1]+W[l][1]
+                    points.append([x,y])
+                    x_points.append(x)
+                    y_points.append(y)
+                    if angs1[k]<angs2[l]:
+                        k+=1
+                    elif angs1[k]>angs2[l]:
+                        l+=1
+                    else:
+                        k+=1
+                        l+=1
+                x_min=min(x_points)
+                x_max=max(x_points)
+                y_min=min(y_points)
+                y_max=max(y_points)
+                self.c_obs[i,j,:]=[x_min,x_max,y_min,y_max]
+                #graphing to make sure it works
+                #  fig,ax=plt.subplots()
+                #  ob=plt.Polygon(points)
+                #  print(points)
+                #  print(list(zip(x_points,y_points)))
+                #  print(ob)
+                #  ax.add_patch(ob)
+                #  ax.axis('equal')
+                #  plt.show()
+                #  sys.exit()
+                j+=1
+            i+=1
 
     def plot_path(self,obs,x_dim,y_dim,v_dim,phi_dim,start,end):
         V=np.array(self.V)
@@ -240,124 +280,50 @@ class TrajectoryGridSearch():
         ax.scatter(V[:,0],V[:,1])
         ax.scatter(start[0],start[1],marker='*',color='green')
         ax.scatter(end_mid[0],end_mid[1],marker='*',color='red')
-        #  for i in range(1,len(self.path)):
-        #      ax.plot([self.path[i-1][0],self.path[i][0]],[self.path[i-1][1],self.path[i][1]],linewidth=3,color='C1')
+        for edge in self.edges:
+            #  print(edge[0],edge[1])
+            ax.plot([edge[0][0],edge[1][0]],[edge[0][1],edge[1][1]],color='C0')
+        if self.path:
+            for i in range(1,len(self.path)):
+                ax.plot([self.path[i-1][0],self.path[i][0]],[self.path[i-1][1],self.path[i][1]],linewidth=3,color='C1')
+        car=plt.Polygon([[0,0],[0,-1],[-2,-1],[-2,0]],color='C2')
+        ax.add_patch(car)
         ax.axis('equal')
-        #  plt.show()
-
-        fig=plt.figure()
-        ax=fig.gca(projection='3d')
-        ax.set_aspect('equal')
-        #voxels are y,z,x for some reason
-        x,y,z=np.mgrid[x_dim[0]:x_dim[1]:12j,y_dim[0]:y_dim[1]:12j,v_dim[0]:v_dim[1]:11j]
-        obs_space=np.zeros((11,11,10))
-        for obstacle in obs:
-            new_obs=np.array(obstacle)
-            x_min=np.min(new_obs[:,0])
-            x_max=np.max(new_obs[:,0])
-            y_min=np.min(new_obs[:,1])
-            y_max=np.max(new_obs[:,1])
-            #  if x_max+2>10:
-            #      x_max=10
-            #  else:
-            #      x_max+=2
-            #  if y_max+2>10:
-            #      y_max=10
-            #  else:
-            #      y_max+=2
-            #  if x_min-2<0:
-            #      x_min=0
-            #  else:
-            #      x_min-=2
-            #  if y_min-2<0:
-            #      y_min=0
-            #  else:
-            #      y_min-=2
-            #  print(x_min,x_max,y_min,y_max)
-            #  print(obs_space[y_min:y_max,:,x_min:x_max].shape)
-            obs_space[x_min:x_max,y_min:y_max,:]=np.ones((x_max-x_min,y_max-y_min,10))
-        ax.voxels(x,y,z,obs_space,color='k')
-        ax.scatter(V[:,0],V[:,1],V[:,3])
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_zlabel('v')
         plt.show()
 
-        #  fig=plt.figure()
-        #  ax=fig.gca(projection='3d')
-        #  ax.set_aspect('equal')
-        #  #voxels are y,z,x for some reason
-        #  x,y,z=np.mgrid[x_dim[0]:x_dim[1]:12j,y_dim[0]:y_dim[1]:12j,theta_dim[0]:theta_dim[1]:11j]
-        #  obs_space=np.zeros((11,11,10))
-        #  for obstacle in obs:
-        #      new_obs=np.array(obstacle)
-        #      x_min=np.min(new_obs[:,0])
-        #      x_max=np.max(new_obs[:,0])
-        #      y_min=np.min(new_obs[:,1])
-        #      y_max=np.max(new_obs[:,1])
-        #      #  if x_max+2>10:
-        #      #      x_max=10
-        #      #  else:
-        #      #      x_max+=2
-        #      #  if y_max+2>10:
-        #      #      y_max=10
-        #      #  else:
-        #      #      y_max+=2
-        #      #  if x_min-2<0:
-        #      #      x_min=0
-        #      #  else:
-        #      #      x_min-=2
-        #      #  if y_min-2<0:
-        #      #      y_min=0
-        #      #  else:
-        #      #      y_min-=2
-        #      #  print(x_min,x_max,y_min,y_max)
-        #      #  print(obs_space[y_min:y_max,:,x_min:x_max].shape)
-        #      obs_space[x_min:x_max,y_min:y_max,:]=np.ones((x_max-x_min,y_max-y_min,10))
-        #  ax.voxels(x,y,z,obs_space,color='k')
-        #  ax.set_xlabel('x')
-        #  ax.set_ylabel('y')
-        #  ax.set_zlabel('theta')
-
-        #  fig,ax=plt.subplots(nrows=5,ncols=1)
-        #  ax[0].scatter(self.time,V[:,0])
-        #  ax[0].set_ylabel('x')
-        #  ax[1].scatter(self.time,V[:,1])
-        #  ax[1].set_ylabel('y')
-        #  ax[2].scatter(self.time,V[:,2])
-        #  ax[2].set_ylabel('theta')
-        #  ax[3].scatter(self.time,V[:,3])
-        #  ax[3].set_ylabel('v')
-        #  ax[4].scatter(self.time,V[:,4])
-        #  ax[4].set_ylabel('phi')
-        #  ax[4].set_xlabel('Time')
+        if self.path:
+            path=np.array(self.path)
+            fig,ax=plt.subplots(nrows=5,ncols=1)
+            ax[0].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,0],color='C1')
+            ax[0].set_ylabel('x')
+            ax[1].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,1],color='C1')
+            ax[1].set_ylabel('y')
+            ax[2].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,2],color='C1')
+            ax[2].set_ylabel('theta')
+            ax[3].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,3],color='C1')
+            ax[3].set_ylabel('v')
+            ax[4].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,4],color='C1')
+            ax[4].set_ylabel('phi')
+            ax[4].set_xlabel('Time')
+            plt.suptitle('States over Time for Solution Path')
+            plt.show()
 
 
 if __name__ == '__main__':
-    parser=argparse.ArgumentParser()
-    parser.add_argument("problem",help="which problem do you want to run? 1 or 2?",type=int)
-    args=parser.parse_args()
-    if args.problem==1:
-        trajectory=TrajectoryGridSearch()
-        #start is [x,y,theta,v,phi]
-        #end is [[x_min,x_max],[y_min,y_max],[theta_min,theta_max],[v_min,v_max]]
-        start=[0,0,0,0,0]
-        end=[[8,9],[8,9],[(4*np.pi)/9,(5*np.pi)/9],[-1/20,1/20]]
-        #  end=[[1,3],[-1,1],[-np.pi,np.pi],[-1/20,1/20]]
-        x_dim=[-1,11]
-        y_dim=[-1,11]
-        v_dim=[-1/6,1/2]
-        theta_dim=[-np.pi,np.pi]
-        phi_dim=[-np.pi/6,np.pi/6]
-        obs=[[[3,0],[5,0],[5,2],[3,2]],
-                [[7,3],[9,3],[9,5],[7,5]],
-                [[1,4],[4,4],[4,6],[1,6]],
-                [[5,7],[6,7],[6,10],[5,10]]]
-        #  obs=[[[7,3],[9,3],[9,5],[7,5]],
-        #          [[1,4],[4,4],[4,6],[1,6]],
-        #          [[5,7],[6,7],[6,10],[5,10]]]
-        trajectory.dt=2
-        trajectory.solve(start,end,x_dim,y_dim,v_dim,theta_dim,phi_dim,obs)
-        trajectory.plot_path(obs,x_dim,y_dim,v_dim,phi_dim,start,end)
-    elif args.problem==2:
-        problem2()
+    trajectory=TrajectoryGridSearch()
+    #start is [x,y,theta,v,phi]
+    #end is [[x_min,x_max],[y_min,y_max],[theta_min,theta_max],[v_min,v_max]]
+    start=[0,0,0,0,0]
+    end=[[8,9],[8,9],[(4*np.pi)/9,(5*np.pi)/9],[-1/20,1/20]]
+    x_dim=[-1,11]
+    y_dim=[-1,11]
+    v_dim=[-1/6,1/2]
+    theta_dim=[-np.pi,np.pi]
+    phi_dim=[-np.pi/6,np.pi/6]
+    obs=[[[3,0],[5,0],[5,2],[3,2]],
+            [[7,3],[9,3],[9,5],[7,5]],
+            [[1,4],[4,4],[4,6],[1,6]],
+            [[5,7],[6,7],[6,10],[5,10]]]
+    trajectory.dt=2.6
+    trajectory.solve(start,end,x_dim,y_dim,v_dim,theta_dim,phi_dim,obs)
+    trajectory.plot_path(obs,x_dim,y_dim,v_dim,phi_dim,start,end)
