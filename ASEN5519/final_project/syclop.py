@@ -67,9 +67,12 @@ class SyCLoP():
         end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2]),np.mean(end[3])]
         self.c_space_obs(obs)
         self.discritize(x_dim,y_dim)
-        start_cell=self.locate_region(start)
-        self.cov[start_cell]=1
+        #  start_cell=self.locate_region(start)
+        #  end_cell=self.locate_region(end_mid)
+        #  self.cov[start_cell]=1
+        self.update_converage(start)
         self.calc_freevol()
+
         self.high_plan(start,end_mid)
         #update high level selections
         for i in range(len(self.high_path)-1):
@@ -77,19 +80,35 @@ class SyCLoP():
             if connection_index:
                 self.high_selection[connection_index]+=1
 
-        available=[]
+        self.available=[]
         for R in reversed(self.high_path):
             if self.cov[R]!=0:
-                available.append(R)
+                self.available.append(R)
+        self.stop=False
 
-        probs=[]
-        for R in available:
-            probs.append((self.freevol[R]**4)/((1+self.cov[R])*(1+self.nsel[R]**2)))
+        #  for high_run in range(5):
+        while not self.stop:
+            continue_high=np.random.choice([0,1],p=[0.25,0.75])
+            if not continue_high:
+                self.high_plan(start,end_mid)
+                #update high level selections
+                for i in range(len(self.high_path)-1):
+                    connection_index=self.get_connection_index(self.high_path[i],self.high_path[i+1])
+                    if connection_index:
+                        self.high_selection[connection_index]+=1
 
-        suma=sum(probs)
-        probs=[x/suma for x in probs]
-        for high_run in range(5):
-            R_select=np.random.choice(available,p=probs)
+                self.available=[]
+                for R in reversed(self.high_path):
+                    if self.cov[R]!=0:
+                        self.available.append(R)
+
+            probs=[]
+            for R in self.available:
+                probs.append((self.freevol[R]**4)/((1+self.cov[R])*(1+self.nsel[R]**2)))
+
+            suma=sum(probs)
+            probs=[x/suma for x in probs]
+            R_select=np.random.choice(self.available,p=probs)
             self.nsel[R_select]+=1
             self.explore(R_select,end)
 
@@ -108,56 +127,73 @@ class SyCLoP():
                     if index_count:
                         self.W[index_count]=self.cost(count,count+32,index_count)
                 count+=1
-        h=[0]*len(self.R)
         astar=A_star()
+        path_type=np.random.choice([0,1],p=[0.05,0.95])
+        if path_type:
+            h=[0]*len(self.R)
+        else:
+            h=np.random.uniform(0,max(self.W),len(self.R))
         self.high_path=astar.construct_path([self.R,self.edges,self.W],start,end,h)
 
     def explore(self,R,end):
-        for low_run in range(5):
-            # select the cell inside R
-            cell_options=self.R_cells[R]
-            total_select=0
-            for cell in cell_options:
-                total_select+=1/(1+self.R_cells_select[(R,cell)])
-            probs=[0]*len(cell_options)
-            count=0
-            for cell in cell_options:
-                probs[count]=(1/(1+self.R_cells_select[(R,cell)]))/total_select
-                count+=1
-            chosen_cell=np.random.choice(cell_options,p=probs)
-            # select the point inside the cell
-            point_options=self.cells_verts[R][chosen_cell]
-            total_select=0
-            for point in point_options:
-                total_select+=1/(1+self.verts_select[tuple(point)])
-            probs=[0]*len(point_options)
-            count=0
-            for point in point_options:
-                probs[count]=(1/(1+self.verts_select[tuple(point)]))/total_select
-                count+=1
-            chosen_point=np.random.choice(point_options,p=probs)
-            # update the selecion total (make variable for that)
-            self.R_cells_select[(R,chosen_cell)]+=1
-            self.verts_select[tuple(chosen_point)]+=1
-            # extend the point using the dynamics
-            bounds=self.R_bounds[R]
-            possible_a=list(self.accel(cell[3],cell[4]))
-            for a in possible_a:
-                new_point=self.dynamics(chosen_point,a)
-                if not self.check_valid(new_point,x_dim,y_dim,theta_dim,v_dim,phi_dim,obs):
-                    # find out if the point left the cell
-                    if (new_point[0]<bounds[0]) or (new_point[0]>bounds[1]) or \
-                            (new_point[1]<bouns[1]) or (new_point[1]>bounds[3]):
-                        new_R=self.locate_region(new_point)
-                        self.update_connections(R,new_R)
-                        connection_index=self.get_connection_index(R,R_new)
-                        if connection_index:
-                            self.low_selection[connection_index]+=1
-                    self.T.append(new_point)
-                    self.R_edges.append([list(chosen_point),list(new_point)])
-                    self.W_low.append(self.d(chosen_point,new_point))
-                    # update everything
-                    self.update_converage(new_point)
+        #  for low_run in range(5):
+        self.new_cells=1
+        continue_low=1
+        while continue_low:
+            if self.new_cells:
+                continue_low=1
+            else:
+                continue_low=np.random.choice([0,1],p=[0.125,0.875])
+            if continue_low:
+                self.new_cells=0
+                # select the cell inside R
+                cell_options=self.R_cells[R]
+                total_select=0
+                for cell in cell_options:
+                    total_select+=1/(1+self.R_cells_select[(R,cell)])
+                probs=[0]*len(cell_options)
+                count=0
+                for cell in cell_options:
+                    probs[count]=(1/(1+self.R_cells_select[(R,cell)]))/total_select
+                    count+=1
+                chosen_cell=np.random.choice(cell_options,p=probs)
+                # select the point inside the cell
+                point_options=self.cells_verts[R][chosen_cell]
+                total_select=0
+                for point in point_options:
+                    total_select+=1/(1+self.verts_select[tuple(point)])
+                probs=[0]*len(point_options)
+                count=0
+                for point in point_options:
+                    probs[count]=(1/(1+self.verts_select[tuple(point)]))/total_select
+                    count+=1
+                chosen_point=point_options[np.random.choice(range(len(point_options)),p=probs)]
+                # update the selecion total (make variable for that)
+                self.R_cells_select[(R,chosen_cell)]+=1
+                self.verts_select[tuple(chosen_point)]+=1
+                # extend the point using the dynamics
+                bounds=self.R_bounds[R]
+                possible_a=list(self.accel(chosen_point[3],chosen_point[4]))
+                for a in possible_a:
+                    new_point=self.dynamics(chosen_point,a)
+                    if not self.check_valid(new_point,x_dim,y_dim,theta_dim,v_dim,phi_dim,obs):
+                        # find out if the point left the cell
+                        if (new_point[0]<bounds[0]) or (new_point[0]>bounds[1]) or \
+                                (new_point[1]<bounds[1]) or (new_point[1]>bounds[3]):
+                            new_R=self.locate_region(new_point)
+                            if new_R not in self.available:
+                                self.available.append(new_R)
+                            self.update_connections(R,new_R)
+                            connection_index=self.get_connection_index(R,new_R)
+                            if connection_index:
+                                self.low_selection[connection_index]+=1
+                        self.T.append(new_point)
+                        self.T_edges.append([list(chosen_point),list(new_point)])
+                        self.W_low.append(self.d(chosen_point,new_point))
+                        # update everything
+                        self.update_converage(new_point)
+                        if self.check_end(new_point,end):
+                            self.stop=True
         
     def discritize(self,x_dim,y_dim,z_dim=None):
         self.x=np.linspace(x_dim[0],x_dim[1],33)
@@ -217,6 +253,8 @@ class SyCLoP():
         return c
 
     def locate_region(self,point):
+        #TODO: this can be more effcient
+        #optional variable of R so it can look in surrounding cells first
         for i in range(len(self.x)-1):
             if (point[0]>self.x[i]) and (point[0]<self.x[i+1]):
                 x_bin=copy.copy(i)
@@ -251,6 +289,7 @@ class SyCLoP():
         R=self.locate_region(point)
         x_bin,y_bin=self.cell_coords(R,point)
         if x_bin*16+y_bin not in self.R_cells[R]:
+            self.new_cells=1
             self.R_cells[R].append(x_bin*16+y_bin)
             self.R_cells_select[(R,x_bin*16+y_bin)]=0
             self.cells_verts[R][x_bin*16+y_bin].append(point)
