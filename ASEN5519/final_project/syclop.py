@@ -5,6 +5,7 @@ import sys
 import copy
 import time
 import pdb
+from tqdm import tqdm
 
 from a_star import A_star
 from hybrid_automaton import Automaton
@@ -63,7 +64,8 @@ class SyCLoP():
         self.T=[]
         self.T_edges=[]
         self.W_low=[]
-        self.L=2
+        self.came_from={}
+        self.L=1
         end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2]),np.mean(end[3])]
         self.c_space_obs(obs)
         self.discritize(x_dim,y_dim)
@@ -86,9 +88,9 @@ class SyCLoP():
                 self.available.append(R)
         self.stop=False
 
-        #  for high_run in range(5):
+        #  for high_run in tqdm(range(100),ncols=100):
         while not self.stop:
-            continue_high=np.random.choice([0,1],p=[0.25,0.75])
+            continue_high=np.random.choice([0,1],p=[0.125,0.875])
             if not continue_high:
                 self.high_plan(start,end_mid)
                 #update high level selections
@@ -111,6 +113,19 @@ class SyCLoP():
             R_select=np.random.choice(self.available,p=probs)
             self.nsel[R_select]+=1
             self.explore(R_select,end)
+        self.path=None
+        if self.stop:
+            h=[0]*len(self.T)
+            astar=A_star()
+            print('finding path')
+            #  self.path=astar.construct_path([self.T,self.T_edges,self.W_low],start,end_mid,h)
+            total_path=[self.final]
+            #  print(current,came_from.keys())
+            current=tuple(self.final)
+            while current!=tuple(start):
+                current=tuple(self.came_from[current])
+                total_path.insert(0,list(current))
+            self.path=total_path
 
     def high_plan(self,start,end):
         start=self.locate_region(start)
@@ -133,7 +148,7 @@ class SyCLoP():
             h=[0]*len(self.R)
         else:
             h=np.random.uniform(0,max(self.W),len(self.R))
-        self.high_path=astar.construct_path([self.R,self.edges,self.W],start,end,h)
+        self.high_path=astar.construct_path_fast([self.R,self.edges,self.W],start,end,h)
 
     def explore(self,R,end):
         #  for low_run in range(5):
@@ -143,7 +158,7 @@ class SyCLoP():
             if self.new_cells:
                 continue_low=1
             else:
-                continue_low=np.random.choice([0,1],p=[0.125,0.875])
+                continue_low=np.random.choice([0,1],p=[0.25,0.75])
             if continue_low:
                 self.new_cells=0
                 # select the cell inside R
@@ -190,10 +205,12 @@ class SyCLoP():
                         self.T.append(new_point)
                         self.T_edges.append([list(chosen_point),list(new_point)])
                         self.W_low.append(self.d(chosen_point,new_point))
+                        self.came_from[tuple(new_point)]=chosen_point
                         # update everything
                         self.update_converage(new_point)
                         if self.check_end(new_point,end):
                             self.stop=True
+                            self.final=new_point
         
     def discritize(self,x_dim,y_dim,z_dim=None):
         self.x=np.linspace(x_dim[0],x_dim[1],33)
@@ -390,16 +407,15 @@ class SyCLoP():
 
     def check_end(self,point,end):
         #end is [[x_min,x_max],[y_min,y_max],[theta_min,theta_max],[v_min,v_max]]
-        if (point[0]>end[0][0]) and (point[0]<end[0][1]) and \
-                (point[1]>end[1][0]) and (point[1]<end[1][1]) and \
-                (point[2]>end[2][0]) and (point[2]<end[2][1]) and \
-                (point[3]>end[3][0]) and (point[3]<end[3][1]):
-                    return 1
-        #  #had to remove velocity constriant
         #  if (point[0]>end[0][0]) and (point[0]<end[0][1]) and \
+        #          (point[1]>end[1][0]) and (point[1]<end[1][1]) and \
         #          (point[2]>end[2][0]) and (point[2]<end[2][1]) and \
-        #          (point[1]>end[1][0]) and (point[1]<end[1][1]):
+        #          (point[3]>end[3][0]) and (point[3]<end[3][1]):
         #              return 1
+        #  #had to remove velocity constriant
+        if (point[0]>end[0][0]) and (point[0]<end[0][1]) and \
+                (point[1]>end[1][0]) and (point[1]<end[1][1]):
+                    return 1
         else:
             return 0
 
@@ -412,9 +428,12 @@ class SyCLoP():
             # rotate robot
             new_robot=[0]*4
             new_robot[0]=[0,0]
-            new_robot[1]=[2*np.cos(theta),2*np.sin(theta)]
-            new_robot[2]=[np.sqrt(5)*np.cos(theta+np.arctan(.5)),np.sqrt(5)*np.sin(theta+np.arctan(.5))]
-            new_robot[3]=[np.cos(theta+np.pi/2),np.sin(theta+np.pi/2)]
+            #  new_robot[1]=[2*np.cos(theta),2*np.sin(theta)]
+            #  new_robot[2]=[np.sqrt(5)*np.cos(theta+np.arctan(.5)),np.sqrt(5)*np.sin(theta+np.arctan(.5))]
+            #  new_robot[3]=[np.cos(theta+np.pi/2),np.sin(theta+np.pi/2)]
+            new_robot[1]=[(self.L)*np.cos(theta),(self.L)*np.sin(theta)]
+            new_robot[2]=[np.sqrt(self.L**2+(self.L/2)**2)*np.cos(theta+np.arctan(.5)),np.sqrt(self.L**2+(self.L/2)**2)*np.sin(theta+np.arctan(.5))]
+            new_robot[3]=[(self.L/2)*np.cos(theta+np.pi/2),(self.L/2)*np.sin(theta+np.pi/2)]
             #  print(theta,new_robot)
             min_point=None
             min_y=None
@@ -485,7 +504,8 @@ class SyCLoP():
             i+=1
 
     def plot_path(self,obs,x_dim,y_dim,v_dim,phi_dim,start,end):
-        V=np.array(self.V)
+        V=np.array(self.T)
+        print(len(V))
         end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2]),np.mean(end[3])]
         fig,ax=plt.subplots()
         for obstacle in obs:
@@ -496,13 +516,14 @@ class SyCLoP():
         ax.scatter(V[:,0],V[:,1])
         ax.scatter(start[0],start[1],marker='*',color='green')
         ax.scatter(end_mid[0],end_mid[1],marker='*',color='red')
-        for edge in self.edges:
-            #  print(edge[0],edge[1])
-            ax.plot([edge[0][0],edge[1][0]],[edge[0][1],edge[1][1]],color='C0')
+        #  for edge in self.T_edges:
+        #      #  print(edge[0],edge[1])
+        #      ax.plot([edge[0][0],edge[1][0]],[edge[0][1],edge[1][1]],color='C0')
         if self.path:
             for i in range(1,len(self.path)):
                 ax.plot([self.path[i-1][0],self.path[i][0]],[self.path[i-1][1],self.path[i][1]],linewidth=3,color='C1')
-        car=plt.Polygon([[0,0],[0,-1],[-2,-1],[-2,0]],color='C2')
+        #  car=plt.Polygon([[0,0],[0,-1],[-2,-1],[-2,0]],color='C2')
+        car=plt.Polygon([[0,0],[0,-self.L/2],[-self.L,-self.L/2],[-self.L,0]],color='C2')
         ax.add_patch(car)
         ax.axis('equal')
         plt.show()
@@ -535,11 +556,15 @@ if __name__ == '__main__':
     v_dim=[-1/6,1/2]
     theta_dim=[-np.pi,np.pi]
     phi_dim=[-np.pi/6,np.pi/6]
+    #  obs=[[[7,3],[9,3],[9,5],[7,5]],
+    #          [[1,4],[4,4],[4,6],[1,6]],
+    #          [[5,7],[6,7],[6,10],[5,10]]]
     obs=[[[3,0],[5,0],[5,2],[3,2]],
             [[7,3],[9,3],[9,5],[7,5]],
             [[1,4],[4,4],[4,6],[1,6]],
             [[5,7],[6,7],[6,10],[5,10]]]
-    plan.dt=2.6
+    plan.dt=0.5
     plan.discritize(x_dim,y_dim)
     plan.solve2(start,end,x_dim,y_dim,v_dim,theta_dim,phi_dim,obs)
-    #  plan.plot_path(obs,x_dim,y_dim,v_dim,phi_dim,start,end)
+    #  print(plan.stop)
+    plan.plot_path(obs,x_dim,y_dim,v_dim,phi_dim,start,end)
