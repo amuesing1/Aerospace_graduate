@@ -17,13 +17,10 @@ class SyCLoP():
         self.T_edges=[]
         self.W_low=[]
         self.came_from={}
-        self.L=1
+        self.L=1.5
         end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2]),np.mean(end[3])]
         self.c_space_obs(obs)
         self.discritize(x_dim,y_dim)
-        #  start_cell=self.locate_region(start)
-        #  end_cell=self.locate_region(end_mid)
-        #  self.cov[start_cell]=1
         self.update_converage(start)
         self.calc_freevol()
 
@@ -142,8 +139,22 @@ class SyCLoP():
                 bounds=self.R_bounds[R]
                 possible_a=list(self.accel(chosen_point[3],chosen_point[4]))
                 for a in possible_a:
-                    new_point=self.dynamics(chosen_point,a)
-                    if not self.check_valid(new_point,x_dim,y_dim,theta_dim,v_dim,phi_dim,obs):
+                    new_point=self.dynamics(chosen_point,a,self.dt)
+                    if self.check_valid(new_point,x_dim,y_dim,theta_dim,v_dim,phi_dim,obs):
+                        prev_point=copy.copy(chosen_point)
+                        for t in np.linspace(0,self.dt,6)[1:]:
+                            new_point=self.dynamics(chosen_point,a,t)
+                            # update everything
+                            v=self.update_converage(new_point)
+                            if v:
+                                self.T.append(new_point)
+                                self.T_edges.append([list(prev_point),list(new_point)])
+                                self.W_low.append(self.d(prev_point,new_point))
+                                self.came_from[tuple(new_point)]=prev_point
+                                prev_point=copy.copy(new_point)
+                            else:
+                                new_point=prev_point
+                                break
                         # find out if the point left the cell
                         if (new_point[0]<bounds[0]) or (new_point[0]>bounds[1]) or \
                                 (new_point[1]<bounds[1]) or (new_point[1]>bounds[3]):
@@ -154,12 +165,6 @@ class SyCLoP():
                             connection_index=self.get_connection_index(R,new_R)
                             if connection_index:
                                 self.low_selection[connection_index]+=1
-                        self.T.append(new_point)
-                        self.T_edges.append([list(chosen_point),list(new_point)])
-                        self.W_low.append(self.d(chosen_point,new_point))
-                        self.came_from[tuple(new_point)]=chosen_point
-                        # update everything
-                        self.update_converage(new_point)
                         if self.check_end(new_point,end):
                             self.stop=True
                             self.final=new_point
@@ -220,7 +225,6 @@ class SyCLoP():
                     edge_count+=1
                 count+=1
         
-
     def cost(self,Ri,Rj,connection_index):
         c=((1+self.selections(Ri,Rj,connection_index)**2)/(1+self.edges_cells[connection_index]**2))* \
                 (1/((1+self.cov[Ri])*self.freevol[Ri]))* \
@@ -230,6 +234,8 @@ class SyCLoP():
     def locate_region(self,point):
         #TODO: this can be more effcient
         #optional variable of R so it can look in surrounding cells first
+        x_bin=None
+        y_bin=None
         for i in range(len(self.x)-1):
             if (point[0]>self.x[i]) and (point[0]<self.x[i+1]):
                 x_bin=copy.copy(i)
@@ -241,6 +247,8 @@ class SyCLoP():
         if len(point)==3:
             # stuff for the 3D problem
             pass
+        if (x_bin is None) or (y_bin is None):
+            return None
         return x_bin*32+y_bin
 
     def cell_coords(self,R,point):
@@ -262,6 +270,8 @@ class SyCLoP():
 
     def update_converage(self,point):
         R=self.locate_region(point)
+        if R is None:
+            return 0
         x_bin,y_bin=self.cell_coords(R,point)
         if x_bin*16+y_bin not in self.R_cells[R]:
             self.new_cells=1
@@ -270,7 +280,7 @@ class SyCLoP():
             self.cells_verts[R][x_bin*16+y_bin].append(point)
             self.verts_select[tuple(point)]=0
             self.cov[R]=len(self.R_cells[R])
-
+        return 1
 
     def selections(self,Ri,Rj,connection_index):
         if (self.cov[Ri]==0) and (self.cov[Rj]==0):
@@ -305,7 +315,7 @@ class SyCLoP():
         samples[:,4]=samples[:,4]*(np.pi/3)-(np.pi/6)
         for sample in samples:
             R=self.locate_region(sample)
-            if self.check_valid(sample,x_dim,y_dim,theta_dim,v_dim,phi_dim,obs):
+            if not self.check_valid(sample,x_dim,y_dim,theta_dim,v_dim,phi_dim,obs):
                 invalid[R]+=1
             else:
                 valid[R]+=1
@@ -314,12 +324,12 @@ class SyCLoP():
             vol=(bounds[1]-bounds[0])*(bounds[3]-bounds[2])
             self.freevol[i]=vol*(sys.float_info.epsilon+valid[i])/(sys.float_info.epsilon+valid[i]+invalid[i])
 
-    def dynamics(self,point,a):
-        v_new=point[3]+a[0]*self.dt
-        phi_new=point[4]+a[1]*self.dt
-        theta_new=point[2]+(v_new/self.L)*np.tan(phi_new)*self.dt
-        x_new=point[0]+v_new*np.cos(theta_new)*self.dt
-        y_new=point[1]+v_new*np.sin(theta_new)*self.dt
+    def dynamics(self,point,a,dt):
+        v_new=point[3]+a[0]*dt
+        phi_new=point[4]+a[1]*dt
+        theta_new=point[2]+(v_new/self.L)*np.tan(phi_new)*dt
+        x_new=point[0]+v_new*np.cos(theta_new)*dt
+        y_new=point[1]+v_new*np.sin(theta_new)*dt
         return [x_new,y_new,theta_new,v_new,phi_new]
 
     def d(self,point1,point2):
@@ -335,35 +345,25 @@ class SyCLoP():
                 (point[3]<v_dim[0]) or (point[3]>v_dim[1]) or \
                 (point[4]<phi_dim[0]) or (point[4]>phi_dim[1]):
                     #  print(point)
-                    return 1
+                    return 0
         # the c_obs needs to be indexed by theta values
         idx=(np.abs(self.thetas-point[2])).argmin()
         obstacles=self.c_obs[idx,:,:]
         for obstacle in obstacles:
             if (point[0]>obstacle[0]) and (point[0]<obstacle[1]) \
                     and (point[1]>obstacle[2]) and (point[1]<obstacle[3]):
-                return 1
-        return 0
+                return 0
+        return 1
 
     def accel(self,v,phi):
-        # return all 9 accelration attempts
-        def make_accels(u1,u2):
-            accels=np.zeros((9,2))
-            for i in range(3):
-                for j in range(3):
-                    accels[i*3+j,:]=[u1[i],u2[j]]
-            return accels
-        u2=[-np.pi/6,0,np.pi/6]
-        #  u2=[-np.pi/20,0,np.pi/20]
+        u2=np.random.uniform(-np.pi/6,np.pi/6,5)
         if v<1/6:
-            u1=[-1/6,0,1/6]
-            return make_accels(u1,u2)
+            u1=np.random.uniform(-1/6,1/6,5)
         elif (v>=1/6) and (v<=2/6):
-            u1=[-1/6,0,1/3]
-            return make_accels(u1,u2)
+            u1=np.random.uniform(-1/6,1/3,5)
         elif v>2/6:
-            u1=[-1/6,0,1/2]
-            return make_accels(u1,u2)
+            u1=np.random.uniform(-1/6,1/2,5)
+        return [list(a) for a in zip(u1,u2)]
 
     def check_end(self,point,end):
         #end is [[x_min,x_max],[y_min,y_max],[theta_min,theta_max],[v_min,v_max]]
@@ -523,7 +523,7 @@ if __name__ == '__main__':
             [[7,3],[9,3],[9,5],[7,5]],
             [[1,4],[4,4],[4,6],[1,6]],
             [[5,7],[6,7],[6,10],[5,10]]]
-    plan.dt=0.5
+    plan.dt=1.5
     plan.discritize(x_dim,y_dim)
     plan.solve(start,end,x_dim,y_dim,v_dim,theta_dim,phi_dim,obs)
     #  print(plan.stop)
