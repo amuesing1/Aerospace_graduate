@@ -13,54 +13,6 @@ from controller import Controller
 
 class SyCLoP():
     def solve(self,start,end,x_dim,y_dim,v_dim,theta_dim,phi_dim,obs):
-        #start is [x,y,theta,v,phi]
-        #end is [[x_min,x_max],[y_min,y_max],[theta_min,theta_max],[v_min,v_max]]
-        self.L=2
-        end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2]),np.mean(end[3])]
-        self.c_space_obs(obs)
-        self.V=[start]
-        self.edges=[]
-        self.W=[]
-        h=[self.d(start,end_mid)]
-        cells=copy.copy(self.V)
-        stop=False
-        final=None
-        self.path=None
-        #  k=0
-        while stop==False:
-            next_round=[]
-            if len(cells)==0:
-                print("No solution")
-                return 0
-            for cell in cells:
-                possible_a=list(self.accel(cell[3],cell[4]))
-                new_cells=[]
-                for a in possible_a:
-                    new_point=self.dynamics(cell,a)
-                    if not self.check_valid(new_point,x_dim,y_dim,theta_dim,v_dim,phi_dim,obs):
-                        new_cells.append(new_point)
-                        self.V.append(new_point)
-                        self.edges.append([list(cell),list(new_point)])
-                        self.W.append(self.d(cell,new_point))
-                        h.append(self.d(new_point,end_mid))
-                for new_cell in new_cells:
-                    #stop if we reach the goal
-                    if self.check_end(new_cell,end):
-                        stop=True
-                        final=copy.copy(new_cell)
-                        break
-                    # add all the new cells to our next round to go out from
-                    next_round.append(new_cell)
-                if stop==True:
-                    break
-            cells=copy.copy(next_round)
-            #  k+=1
-        if final:
-            print('finding path')
-            star=A_star()
-            self.path=star.construct_path([self.V,self.edges,self.W],start,final,h)
-
-    def solve2(self,start,end,x_dim,y_dim,v_dim,theta_dim,phi_dim,obs):
         self.T=[]
         self.T_edges=[]
         self.W_low=[]
@@ -88,7 +40,7 @@ class SyCLoP():
                 self.available.append(R)
         self.stop=False
 
-        #  for high_run in tqdm(range(100),ncols=100):
+        #  for high_run in tqdm(range(200),ncols=100):
         while not self.stop:
             continue_high=np.random.choice([0,1],p=[0.125,0.875])
             if not continue_high:
@@ -219,6 +171,7 @@ class SyCLoP():
         self.R=[]
         self.R_bounds=[]
         self.edges=[]
+        self.edges_dict={}
         self.edges_cells=[]
         self.R_cells=[]
         self.nsel=[]
@@ -233,6 +186,7 @@ class SyCLoP():
         # W is the cost
         self.W=[]
         count=0
+        edge_count=0
         for i in range(len(self.x)-1):
             for j in range(len(self.y)-1):
                 #  print(count,x[i],x[i+1],y[j],y[j+1])
@@ -249,17 +203,21 @@ class SyCLoP():
                 if not count%32==31:
                     #right is connected
                     self.edges.append([count,count+1])
+                    self.edges_dict[tuple([count,count+1])]=edge_count
                     self.edges_cells.append(0)
                     self.high_selection.append(0)
                     self.low_selection.append(0)
                     self.W.append(0)
+                    edge_count+=1
                 if not count>991:
                     #bottom is connected
                     self.edges.append([count,count+32])
+                    self.edges_dict[tuple([count,count+32])]=edge_count
                     self.edges_cells.append(0)
                     self.high_selection.append(0)
                     self.low_selection.append(0)
                     self.W.append(0)
+                    edge_count+=1
                 count+=1
         
 
@@ -321,10 +279,12 @@ class SyCLoP():
             return self.low_selection[connection_index]
 
     def get_connection_index(self,Ri,Rj):
-        if [Ri,Rj] in self.edges:
-            return self.edges.index([Ri,Rj])
-        elif [Rj,Ri] in self.edges:
-            return self.edges.index([Rj,Ri])
+        attempt1=tuple([Ri,Rj])
+        attempt2=tuple([Ri,Rj])
+        if attempt1 in self.edges_dict:
+            return self.edges_dict[attempt1]
+        elif attempt2 in self.edges_dict:
+            return self.edges_dict[attempt2]
         else:
             return 0
 
@@ -565,6 +525,6 @@ if __name__ == '__main__':
             [[5,7],[6,7],[6,10],[5,10]]]
     plan.dt=0.5
     plan.discritize(x_dim,y_dim)
-    plan.solve2(start,end,x_dim,y_dim,v_dim,theta_dim,phi_dim,obs)
+    plan.solve(start,end,x_dim,y_dim,v_dim,theta_dim,phi_dim,obs)
     #  print(plan.stop)
     plan.plot_path(obs,x_dim,y_dim,v_dim,phi_dim,start,end)
