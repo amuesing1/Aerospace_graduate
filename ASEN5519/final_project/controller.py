@@ -317,6 +317,7 @@ if __name__ == '__main__':
             start_point=list(np.random.normal(start_point,2))
             sub_control.position[0,:]=np.array(start_point)
             sub_control.x_est=np.array([start_point[0],0,start_point[1],0,start_point[2],0,0,0,0,0,0,0])
+            print(start_point)
 
     fig=plt.figure()
     ax=fig.add_subplot(111,projection='3d')
@@ -351,8 +352,9 @@ if __name__ == '__main__':
     plt.show()
     #  points=[[0,0,0,0,20,0,0,0,0,0,0,0],[0,0,0,0,5,0,0,0,0,0,0,0]]
     #  dt=1/25
-    #  #position hold controller
+    #position hold controller
 
+    #  sub_control=Controller()
     #  #linearization point
     #  lin_x=[0,0,0,0,0,0,0,0,0,0,0,0]
     #  lin_u=[0,0,0,0,0,0,0,0]

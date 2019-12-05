@@ -23,10 +23,10 @@ class UKF(object):
 
     def load_config(self,path=None):
         if not path:
-            path=os.path.dirname(__file__) + 'config.yaml'
+            path=os.path.dirname(__file__) + '/config.yaml'
         try:
             with open(path, 'r') as stream:
-                cfg=yaml.load(stream)
+                cfg=yaml.load(stream,Loader=yaml.FullLoader)
         except IOError:
             print("No config file found")
             raise
