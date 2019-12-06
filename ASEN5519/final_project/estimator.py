@@ -19,7 +19,8 @@ class UKF(object):
         self.make_nonLinearFunctions(); 
         self.makeNoise(); 
 
-        self.dt = 1/25
+        #TODO: might have a problem here
+        #  self.dt = 1/25
 
     def load_config(self,path=None):
         if not path:
@@ -286,9 +287,12 @@ class UKF(object):
         self.R = np.identity(12)*.1;  
         self.Q = np.identity(10)*.1; 
 
-    def kinematics(self,x,u):
+    def kinematics(self,x,u,dt=None):
         a = self.accels(x,u); 
-        t = self.dt
+        if not dt:
+            t = self.dt
+        else:
+            t = dt
         k = [0 for i in range(0,len(x))]; 
         for i in range(0,len(a)):
             k[i*2] = (x[i*2] + x[i*2+1]*t + .5*a[i]*t**2); 
