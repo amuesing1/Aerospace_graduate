@@ -8,7 +8,7 @@ import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
-import time;
+import time
 
 
 class UKF(object):
@@ -19,8 +19,7 @@ class UKF(object):
         self.make_nonLinearFunctions(); 
         self.makeNoise(); 
 
-        #TODO: might have a problem here
-        #  self.dt = 1/25
+        self.est_dt = 1/25
 
     def load_config(self,path=None):
         if not path:
@@ -290,7 +289,7 @@ class UKF(object):
     def kinematics(self,x,u,dt=None):
         a = self.accels(x,u); 
         if not dt:
-            t = self.dt
+            t = self.est_dt
         else:
             t = dt
         k = [0 for i in range(0,len(x))]; 

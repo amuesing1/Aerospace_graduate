@@ -264,6 +264,7 @@ class Controller(UKF):
         count=0
         while np.max(np.abs(self.x_est-point))>0.5:
             u=self.control_output(self.x_est,point)
+            print(u)
             #  self.x_est=np.array(self.kinematics(self.x_est,u))
             self.x_est=np.array(self.kinematics(self.x_est,u*self.u_scale))
             position=[self.x_est[0],self.x_est[2],self.x_est[4]]

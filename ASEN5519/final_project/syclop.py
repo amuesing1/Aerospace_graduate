@@ -19,7 +19,7 @@ class SyCLoP(UKF):
     def solve(self,start,end,x_dim,y_dim,z_dim,obs):
         """Solve RoboSub Motion Planning"""
 
-        self.dis_size=15
+        self.dis_size=13
         self.dis_size_big=self.dis_size**2
         self.cov_size=int(self.dis_size/2)
         self.cov_size_big=self.cov_size**2
@@ -28,7 +28,9 @@ class SyCLoP(UKF):
         self.came_from={}
         self.L=.5
         # used to calculate the final high level region
-        end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2])]
+        end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2]),np.mean(end[3]),
+                np.mean(end[4]),np.mean(end[5]),np.mean(end[6]),np.mean(end[7]),
+                np.mean(end[8]),np.mean(end[9]),np.mean(end[10]),np.mean(end[11])]
         # construct the cspace for the car
         #  self.c_space_obs(obs)
         # create the high level discritization
@@ -37,7 +39,7 @@ class SyCLoP(UKF):
         self.update_converage(start)
         self.calc_freevol()
 
-        self.high_plan(start[0:3],end_mid)
+        self.high_plan(start,end_mid)
         #update high level selections
         for i in range(len(self.high_path)-1):
             connection_index=self.get_connection_index(self.high_path[i],self.high_path[i+1])
@@ -50,8 +52,8 @@ class SyCLoP(UKF):
                 self.available.append(R)
         self.stop=False
 
-        for high_run in tqdm(range(50),ncols=100):
-        #  while not self.stop:
+        #  for high_run in tqdm(range(500),ncols=100):
+        while not self.stop:
             continue_high=np.random.choice([0,1],p=[0.125,0.875])
             if not continue_high:
                 self.high_plan(start,end_mid)
@@ -79,6 +81,7 @@ class SyCLoP(UKF):
             #  print(self.high_path,self.available,self.available[np.argmax(probs)])
             # select which R to propagate samples
             R_select=np.random.choice(self.available,p=probs)
+            #  print(R_select,self.high_path,list(np.array(sorted(zip(probs,self.available),reverse=True)[:5])[:,1]))
             self.nsel[R_select]+=1
             # explore the region
             self.explore(R_select,end)
@@ -149,10 +152,10 @@ class SyCLoP(UKF):
         end = end criteria
         """
 
-        if R in self.high_path:
-            print("Good")
-        else:
-            print("bad")
+        #  if R in self.high_path:
+        #      print("Good")
+        #  else:
+        #      print("bad")
         self.new_cells=1
         continue_low=1
         while continue_low:
@@ -197,6 +200,7 @@ class SyCLoP(UKF):
                 bounds=self.R_bounds[R]
                 possible_a=self.accel()
                 for a in possible_a:
+                    #  pdb.set_trace()
                     new_point=self.kinematics(chosen_point,a,self.dt)
                     if self.check_valid(new_point,x_dim,y_dim,z_dim):
                         # generate 5 points between the sampled point and the previous point
@@ -219,8 +223,8 @@ class SyCLoP(UKF):
 
                         # find out if the point left the cell
                         if (new_point[0]<bounds[0]) or (new_point[0]>bounds[1]) or \
-                                (new_point[1]<bounds[2]) or (new_point[1]>bounds[3]) or \
-                                (new_point[2]<bounds[4]) or  (new_point[2]>bounds[5]):
+                                (new_point[2]<bounds[2]) or (new_point[2]>bounds[3]) or \
+                                (new_point[4]<bounds[4]) or  (new_point[4]>bounds[5]):
                             new_R=self.locate_region(new_point)
                             # update the variables between regions
                             if new_R not in self.available:
@@ -334,11 +338,11 @@ class SyCLoP(UKF):
                 x_bin=copy.copy(i)
                 break
         for j in range(len(self.y)-1):
-            if (point[1]>self.y[j]) and (point[1]<self.y[j+1]):
+            if (point[2]>self.y[j]) and (point[2]<self.y[j+1]):
                 y_bin=copy.copy(j)
                 break
         for k in range(len(self.z)-1):
-            if (point[2]>self.z[k]) and (point[2]<self.z[k+1]):
+            if (point[4]>self.z[k]) and (point[4]<self.z[k+1]):
                 z_bin=copy.copy(k)
                 break
         if (x_bin is None) or (y_bin is None) or (z_bin is None):
@@ -367,11 +371,11 @@ class SyCLoP(UKF):
                 x_bin=copy.copy(i)
                 break
         for j in range(len(y)-1):
-            if (point[1]>y[j]) and (point[1]<y[j+1]):
+            if (point[2]>y[j]) and (point[2]<y[j+1]):
                 y_bin=copy.copy(j)
                 break
         for k in range(len(z)-1):
-            if (point[2]>z[k]) and (point[2]<z[k+1]):
+            if (point[4]>z[k]) and (point[4]<z[k+1]):
                 z_bin=copy.copy(k)
                 break
 
@@ -471,11 +475,11 @@ class SyCLoP(UKF):
         invalid=[0]*len(self.R)
         # generate samples to check
         # this will change with the space size
-        samples=np.random.rand(5000,3)
+        samples=np.random.rand(5000,6)
         # bias the samples for the dimension
         samples[:,0]=samples[:,0]*20-5
-        samples[:,1]=samples[:,1]*10-5
         samples[:,2]=samples[:,2]*10-5
+        samples[:,4]=samples[:,4]*10-5
         for sample in samples:
             R=self.locate_region(sample)
             if not self.check_valid(sample,x_dim,y_dim,z_dim):
@@ -499,9 +503,16 @@ class SyCLoP(UKF):
         list of accelerations [[u1,u2],..]
         """
 
-        u = list(np.random.uniform(-1,1,size=(5,8))*self.u_scale)
+        u = np.zeros((5,8))
+        u_for = np.random.uniform(-1,1,size=(5,2))*self.u_scale[0]
+        u_down = np.random.normal(0.22,size=5)
+        u_down = np.clip(u_down,-1,1)
+        u_down = [self.u_scale[4]*x for x in u_down]
+
         for i in range(5):
-            u[i][4:]=[u[i][4],u[i][4],u[i][4],u[i][4]]
+            u[i,0:2]=u_for[i,0]
+            u[i,2:4]=u_for[i,1]
+            u[i,4:]=u_down[i]
         return u
 
     def check_valid(self,point,x_dim,y_dim,z_dim):
@@ -522,8 +533,9 @@ class SyCLoP(UKF):
 
         # checking the bounds
         if (point[0]<x_dim[0]) or (point[0]>x_dim[1]) or \
-                (point[1]<y_dim[0]) or (point[1]>y_dim[1]) or \
-                (point[2]<z_dim[0]) or (point[2]>z_dim[1]):
+                (point[2]<y_dim[0]) or (point[2]>y_dim[1]) or \
+                (point[4]<0) or (point[4]>z_dim[1]):
+                #  (point[4]<z_dim[0]) or (point[4]>z_dim[1]):
                     return 0
         #  # the c_obs needs to be indexed by theta values
         #  idx=(np.abs(self.thetas-point[2])).argmin()
@@ -548,8 +560,8 @@ class SyCLoP(UKF):
         """
 
         if (point[0]>end[0][0]) and (point[0]<end[0][1]) and \
-                (point[1]>end[1][0]) and (point[1]<end[1][1]) and \
-                (point[2]>end[2][0]) and (point[2]<end[2][1]):
+                (point[2]>end[2][0]) and (point[2]<end[2][1]) and \
+                (point[4]>end[4][0]) and (point[4]<end[4][1]):
                     return 1
         else:
             return 0
@@ -641,13 +653,15 @@ class SyCLoP(UKF):
         #TODO: make 3D graph for sampled points, use previous graph from hybrid_system
         V=np.array(self.T)
         print(len(V))
-        end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2])]
+        end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2]),np.mean(end[3]),
+                np.mean(end[4]),np.mean(end[5]),np.mean(end[6]),np.mean(end[7]),
+                np.mean(end[8]),np.mean(end[9]),np.mean(end[10]),np.mean(end[11])]
         fig=plt.figure()
         ax=fig.add_subplot(111,projection='3d')
         ax.scatter(15,5,5,s=75,marker='s',c='w')
-        ax.scatter(V[:,0],V[:,1],V[:,2])
-        ax.scatter(start[0],start[1],start[2],marker='*',color='green')
-        ax.scatter(end_mid[0],end_mid[1],end_mid[2],marker='*',color='red')
+        #  ax.scatter(V[:,0],V[:,2],V[:,4])
+        ax.scatter(start[0],start[2],start[4],marker='*',color='green')
+        ax.scatter(end_mid[0],end_mid[2],end_mid[4],marker='*',color='red')
         for cell in self.high_path:
             bounds=self.R_bounds[cell]
             to_graph=[np.mean(bounds[0:2]),np.mean(bounds[2:4]),np.mean(bounds[4:6])]
@@ -685,32 +699,31 @@ class SyCLoP(UKF):
         #      ax.plot([edge[0][0],edge[1][0]],[edge[0][1],edge[1][1]],color='C0')
         if self.path:
             for i in range(1,len(self.path)):
-                ax.plot([self.path[i-1][0],self.path[i][0]],[self.path[i-1][1],self.path[i][1]],linewidth=3,color='C1')
+                ax.plot([self.path[i-1][0],self.path[i][0]],[self.path[i-1][2],self.path[i][2]],[self.path[i-1][4],self.path[i][4]],linewidth=3,color='C1')
 
-        if self.path:
-            path=np.array(self.path)
-            fig,ax=plt.subplots(nrows=5,ncols=1)
-            ax[0].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,0],color='C1')
-            ax[0].set_ylabel('x')
-            ax[1].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,1],color='C1')
-            ax[1].set_ylabel('y')
-            ax[2].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,2],color='C1')
-            ax[2].set_ylabel('theta')
-            ax[3].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,3],color='C1')
-            ax[3].set_ylabel('v')
-            ax[4].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,4],color='C1')
-            ax[4].set_ylabel('phi')
-            ax[4].set_xlabel('Time')
-            plt.suptitle('States over Time for Solution Path')
+        #  if self.path:
+        #      path=np.array(self.path)
+        #      fig,ax=plt.subplots(nrows=5,ncols=1)
+        #      ax[0].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,0],color='C1')
+        #      ax[0].set_ylabel('x')
+        #      ax[1].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,1],color='C1')
+        #      ax[1].set_ylabel('y')
+        #      ax[2].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,2],color='C1')
+        #      ax[2].set_ylabel('theta')
+        #      ax[3].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,3],color='C1')
+        #      ax[3].set_ylabel('v')
+        #      ax[4].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,4],color='C1')
+        #      ax[4].set_ylabel('phi')
+        #      ax[4].set_xlabel('Time')
+        #      plt.suptitle('States over Time for Solution Path')
         plt.show()
 
 if __name__ == '__main__':
     plan=SyCLoP()
     #start is [x,y,theta,v,phi]
     #end is [[x_min,x_max],[y_min,y_max],[theta_min,theta_max],[v_min,v_max]]
-    start=[0.1,0.1,0.1,0,0,0,0,0,0,0,0,0]
-    end=[[8,9],[8,9],[(4*np.pi)/9,(5*np.pi)/9],[-1/20,1/20]]
-    end=[[9,10],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1]]
+    start=[0.1,0,0.1,0,0.5,0,0,0,0,0,0,0]
+    end=[[9,11],[-1,1],[-1,1],[-1,1],[1,3],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1]]
     x_dim=[-5,15]
     y_dim=[-5,5]
     z_dim=[-5,5]
