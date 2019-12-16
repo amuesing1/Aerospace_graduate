@@ -2,6 +2,7 @@ import sys
 import copy
 import numpy as np
 import time
+import pdb
 
 class A_star():
     def construct_path(self,G,start,end,h,debug=False):
@@ -93,7 +94,9 @@ class A_star():
         count=0
         V_dict={}
         for v in V:
-            if not isinstance(v,int):
+            if isinstance(v,str):
+                V_dict[v]=count
+            elif not isinstance(v,int):
                 if len(v)>1:
                     V_dict[tuple(v)]=count
                 else:
@@ -117,6 +120,7 @@ class A_star():
 
         iterations=0
         while len(open_set)>0:
+            #  print(open_set)
             f_min=np.inf
             for node in open_set:
                 #  print(f_score[V.index(node)],node)
@@ -127,10 +131,16 @@ class A_star():
                 #reconstruct path
                 total_path=[current]
                 #  print(current,came_from.keys())
-                if not isinstance(current,int):
+                if isinstance(current,str):
+                    pass
+                elif not isinstance(current,int):
                     current=tuple(current)
                 while current in came_from.keys():
+                    #  pdb.set_trace()
                     if isinstance(current,int):
+                        current=came_from[current]
+                        total_path.insert(0,current)
+                    elif isinstance(current,str):
                         current=came_from[current]
                         total_path.insert(0,current)
                     else:
@@ -154,10 +164,13 @@ class A_star():
                     neighbors.append(edge[0])
                     connections.append(E_dict[edge])
             count=0
+            #  pdb.set_trace()
             for neighbor in neighbors:
                 trial_g=g_score[V_dict[current]]+W[connections[count]]
                 if trial_g<g_score[V_dict[neighbor]]:
                     if isinstance(neighbor,int):
+                        came_from[neighbor]=current
+                    elif isinstance(neighbor,str):
                         came_from[neighbor]=current
                     else:
                         came_from[tuple(neighbor)]=current
