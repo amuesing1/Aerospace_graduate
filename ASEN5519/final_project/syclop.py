@@ -12,14 +12,16 @@ from hybrid_automaton import Automaton
 from controller import Controller
 from estimator import UKF
 
-class SyCLoP(UKF):
+class SyCLoP():
     def __init__(self):
-        UKF.__init__(self)
+        #  UKF.__init__(self)
+        self.UKF=UKF()
+        self.hybrid=Automaton()
 
-    def solve(self,start,end,x_dim,y_dim,z_dim,obs):
+    def solve(self,start,end,x_dim,y_dim,z_dim,obs,place=None,task=False):
         """Solve RoboSub Motion Planning"""
 
-        self.dis_size=13
+        self.dis_size=11
         self.dis_size_big=self.dis_size**2
         self.cov_size=int(self.dis_size/2)
         self.cov_size_big=self.cov_size**2
@@ -34,12 +36,20 @@ class SyCLoP(UKF):
         # construct the cspace for the car
         #  self.c_space_obs(obs)
         # create the high level discritization
-        self.discritize(x_dim,y_dim,z_dim)
+        if task:
+            self.discritize_task(x_dim,y_dim,z_dim,start,end_mid)
+        else:
+            self.discritize(x_dim,y_dim,z_dim)
 
         self.update_converage(start)
         self.calc_freevol()
 
-        self.high_plan(start,end_mid)
+        if task:
+            self.place=place
+            self.high_plan_task(start,end_mid,place)
+        else:
+            self.place=0
+            self.high_plan(start,end_mid)
         #update high level selections
         for i in range(len(self.high_path)-1):
             connection_index=self.get_connection_index(self.high_path[i],self.high_path[i+1])
@@ -52,11 +62,14 @@ class SyCLoP(UKF):
                 self.available.append(R)
         self.stop=False
 
-        #  for high_run in tqdm(range(500),ncols=100):
-        while not self.stop:
+        for high_run in tqdm(range(100),ncols=100):
+        #  while not self.stop:
             continue_high=np.random.choice([0,1],p=[0.125,0.875])
             if not continue_high:
-                self.high_plan(start,end_mid)
+                if task:
+                    self.high_plan_task(start,end_mid,place)
+                else:
+                    self.high_plan(start,end_mid)
                 #update high level selections
                 for i in range(len(self.high_path)-1):
                     connection_index=self.get_connection_index(self.high_path[i],self.high_path[i+1])
@@ -70,10 +83,6 @@ class SyCLoP(UKF):
 
             probs=[]
             for R in self.available:
-                #  if R in self.high_path:
-                #      print("Should",self.cov[R],self.nsel[R])
-                #  else:
-                #      print("Not",self.cov[R],self.nsel[R])
                 probs.append((self.freevol[R]**4)/((1+self.cov[R])*(1+self.nsel[R]**2)))
 
             suma=sum(probs)
@@ -84,6 +93,8 @@ class SyCLoP(UKF):
             #  print(R_select,self.high_path,list(np.array(sorted(zip(probs,self.available),reverse=True)[:5])[:,1]))
             self.nsel[R_select]+=1
             # explore the region
+            #  if high_run==200:
+            #      pdb.set_trace()
             self.explore(R_select,end)
 
         self.path=None
@@ -143,6 +154,65 @@ class SyCLoP(UKF):
         self.high_path=astar.construct_path_fast([self.R,self.edges,self.W],start,end,h)
         #  print('path',self.high_path)
 
+    def high_plan_task(self,start,end,place):
+        """
+        Create a high level plan to bais sampling
+
+        Inputs:
+        start = start position of the car
+        end = goal position of the car
+        """
+
+        closest_start=self.locate_region(start)
+        self.closest_start='x'+str(closest_start)+'q'+str(place)
+        closest_end=self.locate_region(end)
+        self.closest_end='x'+str(closest_end)+'q'+str(place+1)
+        count=0
+        for k in range(len(self.z)-1):
+            for i in range(len(self.x)-1):
+                for j in range(len(self.y)-1):
+                    # go to the right
+                    if not count%self.dis_size==self.dis_size-1:
+                        index_count=self.get_connection_index(count,count+1)
+                        if index_count:
+                            # compute the cost of transition for each region
+                            if index_count in self.edges_task_index.keys():
+                                indicies=self.edges_task_index[index_count]
+                                current_cost=self.cost(count,count+1,index_count)
+                                for ind in indicies:
+                                    self.W_task[ind]=current_cost
+                    # go to the bottom
+                    if count%self.dis_size_big not in range(self.dis_size_big-self.dis_size,self.dis_size_big):
+                        index_count=self.get_connection_index(count,count+self.dis_size)
+                        if index_count:
+                            if index_count in self.edges_task_index.keys():
+                                indicies=self.edges_task_index[index_count]
+                                current_cost=self.cost(count,count+self.dis_size,index_count)
+                                for ind in indicies:
+                                    self.W_task[ind]=current_cost
+                    #go to the back
+                    if not count>(self.dis_size**3-self.dis_size_big-1):
+                        index_count=self.get_connection_index(count,count+self.dis_size_big)
+                        if index_count:
+                            if index_count in self.edges_task_index.keys():
+                                indicies=self.edges_task_index[index_count]
+                                current_cost=self.cost(count,count+self.dis_size_big,index_count)
+                                for ind in indicies:
+                                    self.W_task[ind]=current_cost
+                    count+=1
+        astar=A_star()
+        # occationally choose a random path that will go to goal but not optimal
+        path_type=np.random.choice([0,1],p=[0.05,0.95])
+        if path_type:
+            h=[0]*len(self.R_task)
+        else:
+            # make random costs
+            h=np.random.uniform(0,max(self.W_task),len(self.R_task))
+        # use A* to compute the high level path
+        self.high_path=astar.construct_path_fast([self.R_task,self.edges_task,self.W_task],self.closest_start,self.closest_end,h)
+        #  print('path',self.high_path)
+        self.high_path=[int(x[1:-2]) for x in self.high_path]
+
     def explore(self,R,end):
         """Take the region and explore using
         low level sampling techniques
@@ -152,10 +222,6 @@ class SyCLoP(UKF):
         end = end criteria
         """
 
-        #  if R in self.high_path:
-        #      print("Good")
-        #  else:
-        #      print("bad")
         self.new_cells=1
         continue_low=1
         while continue_low:
@@ -200,14 +266,16 @@ class SyCLoP(UKF):
                 bounds=self.R_bounds[R]
                 possible_a=self.accel()
                 for a in possible_a:
-                    #  pdb.set_trace()
-                    new_point=self.kinematics(chosen_point,a,self.dt)
+                    new_point=self.UKF.kinematics(chosen_point,a,self.dt)
+                    if abs(new_point[0])>100:
+                        pdb.set_trace()
+                    #  print(chosen_point,new_point,a)
                     if self.check_valid(new_point,x_dim,y_dim,z_dim):
                         # generate 5 points between the sampled point and the previous point
                         # we get these points for free and allows for a larger dt
                         prev_point=copy.copy(chosen_point)
                         for t in np.linspace(0,self.dt,6)[1:]:
-                            new_point=self.kinematics(chosen_point,a,t)
+                            new_point=self.UKF.kinematics(chosen_point,a,t)
                             v=self.update_converage(new_point)
                             # this checks if the point skips over an obstacle
                             # or briefly goes out of bounds
@@ -259,14 +327,14 @@ class SyCLoP(UKF):
         self.edges_dict={}
         self.R_cells=[[]]*(self.dis_size**3)
         self.R_cells=[[] for x in self.R_cells]
-        self.R_cells[0].append(1)
+        #  self.R_cells[0].append(1)
         self.nsel=[0]*(self.dis_size**3)
         self.cov=[0]*(self.dis_size**3)
         self.R_cells_select={}
         cells_list=[[]]*(self.cov_size**3)
         cells_list=[[] for x in cells_list]
         self.cells_verts=[[]]*(self.dis_size**3)
-        self.cells_verts=[copy.copy(cells_list) for x in self.cells_verts]
+        self.cells_verts=[copy.deepcopy(cells_list) for x in self.cells_verts]
         #  self.cells_verts=[cells_list]*(self.dis_size**3)
         self.verts_select={}
         # W is the cost
@@ -299,6 +367,191 @@ class SyCLoP(UKF):
         self.W=[0]*len(self.edges)
         self.high_selection=[0]*len(self.edges)
         self.low_selection=[0]*len(self.edges)
+
+    def discritize_task(self,x_dim,y_dim,z_dim,start,end):
+        """
+        Creates the high level discritization of the
+        space and creates varriables for later use
+
+        Inputs:
+        x_dim = [min x, max x]
+        y_dim = [min y, max y]
+        """
+
+        self.x=np.linspace(x_dim[0],x_dim[1],self.dis_size+1)
+        self.y=np.linspace(y_dim[0],y_dim[1],self.dis_size+1)
+        self.z=np.linspace(z_dim[0],z_dim[1],self.dis_size+1)
+        self.R=range(self.dis_size**3)
+        self.R_bounds=[[0]]*(self.dis_size**3)
+        self.edges=[]
+        phy_sys=[]
+        # dictionaries are much faster to index
+        self.edges_dict={}
+        self.R_cells=[[]]*(self.dis_size**3)
+        self.R_cells=[[] for x in self.R_cells]
+        #  self.R_cells[0].append(1)
+        self.nsel=[0]*(self.dis_size**3)
+        self.cov=[0]*(self.dis_size**3)
+        self.R_cells_select={}
+        cells_list=[[]]*(self.cov_size**3)
+        cells_list=[[] for x in cells_list]
+        self.cells_verts=[[]]*(self.dis_size**3)
+        self.cells_verts=[copy.deepcopy(cells_list) for x in self.cells_verts]
+        #  self.cells_verts=[cells_list]*(self.dis_size**3)
+        self.verts_select={}
+        # W is the cost
+        count=0
+        edge_count=0
+        gate=False
+        dice=False
+        for k in range(len(self.z)-1):
+            for i in range(len(self.x)-1):
+                for j in range(len(self.y)-1):
+                    state={'name':'x'+str(count),'location':[self.x[i],self.y[j],self.z[k]],
+                            'trans':[{'state':'x'+str(count),'sigma':'s'}]}
+                    # create the grided regions
+                    self.R_bounds[count]=[self.x[i],self.x[i+1],self.y[j],self.y[j+1],self.z[k],self.z[k+1]]
+
+                    if self.z[k]<0:
+                        #surface
+                        state['output']='s'
+                    elif (self.x[i]<4.5) and (self.x[i]>3) and (self.y[j]>3) and (self.y[j]<7) and (self.z[k]>2) and (self.z[k]<7):
+                        #gate
+                        state['output']='g'
+                        gate=True
+                    elif (self.x[i]<15.5) and (self.x[i]>14.5) and (self.y[j]>4.5) and (self.y[j]<5.5) and (self.z[k]>4.5) and (self.z[k]<5.5):
+                        #gate
+                        state['output']='d'
+                        dice=True
+                    elif self.x[i]<3.5:
+                        #left side
+                        state['output']='l'
+                    else:
+                        #right side
+                        state['output']='r'
+                    # create the edges between regions
+                    # right is connected
+                    if not count%self.dis_size==self.dis_size-1:
+                        self.edges.append([count,count+1])
+                        self.edges_dict[tuple([count,count+1])]=edge_count
+                        state['trans'].append({'state':'x'+str(count+1),'sigma':'r'})
+                        edge_count+=1
+                    # bottom is connected
+                    if count%self.dis_size_big not in range(self.dis_size_big-self.dis_size,self.dis_size_big):
+                        self.edges.append([count,count+self.dis_size])
+                        self.edges_dict[tuple([count,count+self.dis_size])]=edge_count
+                        state['trans'].append({'state':'x'+str(count+self.dis_size),'sigma':'f'})
+                        edge_count+=1
+                    #back is connected
+                    if not count>(self.dis_size**3-self.dis_size_big-1):
+                        self.edges.append([count,count+self.dis_size_big])
+                        self.edges_dict[tuple([count,count+self.dis_size_big])]=edge_count
+                        state['trans'].append({'state':'x'+str(count+self.dis_size_big),'sigma':'d'})
+                        edge_count+=1
+                    #these are just for the automata code
+                    #left is connected
+                    if not count%self.dis_size==0:
+                        state['trans'].append({'state':'x'+str(count-1),'sigma':'l'})
+                    #top is connected
+                    if count%self.dis_size_big not in range(0,self.dis_size):
+                        state['trans'].append({'state':'x'+str(count-self.dis_size),'sigma':'b'})
+                    #front is connected
+                    if count>=self.dis_size_big:
+                        state['trans'].append({'state':'x'+str(count-self.dis_size_big),'sigma':'u'})
+
+
+                    phy_sys.append(state)
+                    count+=1
+        if not gate:
+            closest=1000
+            for state in phy_sys:
+                point=state['location']
+                dis=np.sqrt((point[0]-3.5)**2+(point[1]-5)**2+ \
+                        (point[2]-5)**2)
+                if dis<closest:
+                    closest=dis
+                    loc=copy.copy(point)
+            for state in phy_sys:
+                if state['location']==loc:
+                    state['output']='g'
+        if not dice:
+            closest=1000
+            for state in phy_sys:
+                point=state['location']
+                dis=np.sqrt((point[0]-15)**2+(point[1]-5)**2+ \
+                        (point[2]-5)**2)
+                if dis<closest:
+                    closest=dis
+                    loc=copy.copy(point)
+            for state in phy_sys:
+                if state['location']==loc:
+                    state['output']='d'
+
+        self.edges_cells=[0]*len(self.edges)
+        self.W=[0]*len(self.edges)
+        self.high_selection=[0]*len(self.edges)
+        self.low_selection=[0]*len(self.edges)
+
+        buchi=[{'name':'q0','type':'init',
+                'trans':[{'state':'q0','output':'l'},
+                        {'state':'q1','output':'g'}]},
+                {'name':'q1','type':'regular',
+                'trans':[{'state':'q1','output':'grl'},
+                        {'state':'q2','output':'d'}]},
+                {'name':'q2','type':'regular',
+                'trans':[{'state':'q2','output':'grld'},
+                        {'state':'q3','output':'s'}]},
+                {'name':'q3','type':'accept',
+                'trans':[{'state':'q3','output':'s'}]}]
+        automata=self.hybrid.product(phy_sys,buchi)
+
+        self.R_task=[0]*len(automata)
+        self.edges_task=[]
+        self.edges_task_dict={}
+        self.edges_task_index={}
+        edges_dup=[]
+        closest_end=None
+        closest_point_end=1000
+        closest_start=None
+        closest_point_start=1000
+        count=0
+        for item in automata:
+            item['name']=item['name1']+item['name2']
+            point=item['location']
+            self.R_task[count]=item['name']
+            for trans in item['trans']:
+                if trans['sigma']!='s':
+                    if [trans['name1']+trans['name2'],item['name']] not in self.edges_task:
+                        self.edges_task.append([item['name'],trans['name1']+trans['name2']])
+            count+=1
+        locations=[]
+        count=0
+        locations=[]
+        for trans in self.edges_task:
+            if (trans[0] not in self.R_task):
+                locations.append(self.edges_task.index(trans))
+            if (trans[1] not in self.R_task):
+                locations.append(self.edges_task.index(trans))
+        locations.sort(reverse=True)
+        for loc in locations:
+            del self.edges_task[loc]
+        for trans in self.edges_task:
+            self.edges_task_dict[tuple(trans)]=count
+            count+=1
+        for trans in self.edges_task:
+            ind=self.get_connection_index(int(trans[0][1:-2]),int(trans[1][1:-2]))
+            if ind in self.edges_task_index.keys():
+                self.edges_task_index[ind].append(self.edges_task_dict[tuple(trans)])
+            else:
+                self.edges_task_index[ind]=[self.edges_task_dict[tuple(trans)]]
+
+        self.W_task=[0]*len(self.edges_task)
+        #  print(self.closest_end,self.closest_start)
+        #  print(self.edges_task_index)
+        #  print(automata[0])
+        #  print(self.R_task)
+        #  print(self.edges_task)
+        #  sys.exit()
         
     def cost(self,Ri,Rj,connection_index):
         """
@@ -371,7 +624,7 @@ class SyCLoP(UKF):
                 x_bin=copy.copy(i)
                 break
         for j in range(len(y)-1):
-            if (point[2]>y[j]) and (point[2]<y[j+1]):
+            if (point[2]>=y[j]) and (point[2]<y[j+1]):
                 y_bin=copy.copy(j)
                 break
         for k in range(len(z)-1):
@@ -477,9 +730,9 @@ class SyCLoP(UKF):
         # this will change with the space size
         samples=np.random.rand(5000,6)
         # bias the samples for the dimension
-        samples[:,0]=samples[:,0]*20-5
-        samples[:,2]=samples[:,2]*10-5
-        samples[:,4]=samples[:,4]*10-5
+        samples[:,0]=samples[:,0]*20-2
+        samples[:,2]=samples[:,2]*14-2
+        samples[:,4]=samples[:,4]*10-2
         for sample in samples:
             R=self.locate_region(sample)
             if not self.check_valid(sample,x_dim,y_dim,z_dim):
@@ -504,10 +757,13 @@ class SyCLoP(UKF):
         """
 
         u = np.zeros((5,8))
-        u_for = np.random.uniform(-1,1,size=(5,2))*self.u_scale[0]
-        u_down = np.random.normal(0.22,size=5)
+        u_for = np.random.uniform(-1,1,size=(5,2))*self.UKF.u_scale[0]
+        if self.place==2:
+            u_down = np.random.normal(0.2262,size=5)
+        else:
+            u_down = np.random.normal(0.2262,.1,size=5)
         u_down = np.clip(u_down,-1,1)
-        u_down = [self.u_scale[4]*x for x in u_down]
+        u_down = [self.UKF.u_scale[4]*x for x in u_down]
 
         for i in range(5):
             u[i,0:2]=u_for[i,0]
@@ -649,8 +905,7 @@ class SyCLoP(UKF):
                 j+=1
             i+=1
 
-    def plot_path(self,obs,x_dim,y_dim,z_dim,start,end):
-        #TODO: make 3D graph for sampled points, use previous graph from hybrid_system
+    def plot_path(self,obs,x_dim,y_dim,z_dim,start,end,demo=False):
         V=np.array(self.T)
         print(len(V))
         end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2]),np.mean(end[3]),
@@ -658,8 +913,7 @@ class SyCLoP(UKF):
                 np.mean(end[8]),np.mean(end[9]),np.mean(end[10]),np.mean(end[11])]
         fig=plt.figure()
         ax=fig.add_subplot(111,projection='3d')
-        ax.scatter(15,5,5,s=75,marker='s',c='w')
-        #  ax.scatter(V[:,0],V[:,2],V[:,4])
+        ax.scatter(V[:,0],V[:,2],V[:,4])
         ax.scatter(start[0],start[2],start[4],marker='*',color='green')
         ax.scatter(end_mid[0],end_mid[2],end_mid[4],marker='*',color='red')
         for cell in self.high_path:
@@ -667,15 +921,17 @@ class SyCLoP(UKF):
             to_graph=[np.mean(bounds[0:2]),np.mean(bounds[2:4]),np.mean(bounds[4:6])]
             ax.scatter(to_graph[0],to_graph[1],to_graph[2],color='C1')
 
-        #  y_top=np.linspace(3,7,100)
-        #  z_side=np.linspace(2,7,100)
-        #  x=3.5*np.ones(100)
-        #  y_side1=3*np.ones(100)
-        #  y_side2=7*np.ones(100)
-        #  z_top=2*np.ones(100)
-        #  ax.plot(x,y_top,z_top,label='Gate',c='k')
-        #  ax.plot(x,y_side1,z_side,c='k')
-        #  ax.plot(x,y_side2,z_side,c='k')
+        if not demo:
+            y_top=np.linspace(3,7,100)
+            z_side=np.linspace(2,7,100)
+            x=3.5*np.ones(100)
+            y_side1=3*np.ones(100)
+            y_side2=7*np.ones(100)
+            z_top=2*np.ones(100)
+            ax.plot(x,y_top,z_top,label='Gate',c='k')
+            ax.plot(x,y_side1,z_side,c='k')
+            ax.plot(x,y_side2,z_side,c='k')
+            ax.scatter(15,5,5,s=75,marker='s',c='w')
 
         x=np.linspace(x_dim[0],x_dim[1])
         y=np.linspace(y_dim[0],y_dim[1])
@@ -720,18 +976,41 @@ class SyCLoP(UKF):
 
 if __name__ == '__main__':
     plan=SyCLoP()
-    #start is [x,y,theta,v,phi]
-    #end is [[x_min,x_max],[y_min,y_max],[theta_min,theta_max],[v_min,v_max]]
-    start=[0.1,0,0.1,0,0.5,0,0,0,0,0,0,0]
-    end=[[9,11],[-1,1],[-1,1],[-1,1],[1,3],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1],[-1,1]]
-    x_dim=[-5,15]
-    y_dim=[-5,5]
-    z_dim=[-5,5]
-    obs=[[]]
-    #  obs=[[[3,0],[5,0],[5,2],[3,2]],
-    #          [[7,3],[9,3],[9,5],[7,5]],
-    #          [[1,4],[4,4],[4,6],[1,6]],
-    #          [[5,7],[6,7],[6,10],[5,10]]]
-    plan.dt=1.5
-    plan.solve(start,end,x_dim,y_dim,z_dim,obs)
-    plan.plot_path(obs,x_dim,y_dim,z_dim,start,end)
+    demo=False
+    if demo:
+        start=[0.1,0,5,0,5,0,0,0,0,0,0,0]
+        end=[[14,18],[-100,100],[1,8],[-100,100],[4,5],[-100,100],[-100,100],[-100,100],[-100,100],[-100,100],[-100,100],[-100,100]]
+        x_dim=[-2,18]
+        y_dim=[-2,12]
+        z_dim=[-2,8]
+        obs=[[]]
+        plan.dt=1.5
+        plan.solve(start,end,x_dim,y_dim,z_dim,obs)
+        plan.plot_path(obs,x_dim,y_dim,z_dim,start,end,demo=True)
+    else:
+        x_dim=[-2,18]
+        y_dim=[-2,12]
+        z_dim=[-2,8]
+        obs=[[]]
+        #  obs=[[[3,0],[5,0],[5,2],[3,2]],
+        #          [[7,3],[9,3],[9,5],[7,5]],
+        #          [[1,4],[4,4],[4,6],[1,6]],
+        #          [[5,7],[6,7],[6,10],[5,10]]]
+        plan.dt=1.5
+        start=[0.1,0,5,0,5,0,0,0,0,0,0,0]
+        #  start=[5,0,5,0,5,0,0,0,0,0,0,0]
+        # add key points to hit
+        keys=[[[4,5],[3,7],[2,7]],[[14,15],[4,6],[4,6]],[[4,18],[-2,8],[-1,1]]]
+        #  keys=[[[14,15],[4,6],[4,6]],[[4,18],[-2,8],[-1,1]]]
+        total=[]
+        place=0
+        for key in keys:
+            end=[key[0],[-100,100],key[1],[-100,100],key[2],[-100,100],[-100,100],[-100,100],[-100,100],[-100,100],[-100,100],[-100,100]]
+            plan.solve(start,end,x_dim,y_dim,z_dim,obs,place,task=True)
+            plan.plot_path(obs,x_dim,y_dim,z_dim,start,end)
+            start=plan.path[-1]
+            start[6:]=[0]*6
+            total.extend(plan.path)
+            place+=1
+        plan.path=total
+        plan.plot_path(obs,x_dim,y_dim,z_dim,start,end)
