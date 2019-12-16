@@ -11,7 +11,7 @@ from copy import deepcopy
 import time
 
 
-class UKF(object):
+class UKF():
     def __init__(self):
         self.cfg=self.load_config()
         self.extract_vars()
@@ -20,6 +20,7 @@ class UKF(object):
         self.makeNoise(); 
 
         self.est_dt = 1/25
+        #  self.est_dt = 1/5
 
     def load_config(self,path=None):
         if not path:
@@ -287,15 +288,22 @@ class UKF(object):
         self.Q = np.identity(10)*.1; 
 
     def kinematics(self,x,u,dt=None):
-        a = self.accels(x,u); 
         if not dt:
             t = self.est_dt
+            a = self.accels(x,u); 
+            k = [0 for i in range(0,len(x))]; 
+            for i in range(0,len(a)):
+                k[i*2] = (x[i*2] + x[i*2+1]*t + .5*a[i]*t**2); 
+                k[i*2+1] = (x[i*2+1] + a[i]*t**2); 
         else:
-            t = dt
-        k = [0 for i in range(0,len(x))]; 
-        for i in range(0,len(a)):
-            k[i*2] = (x[i*2] + x[i*2+1]*t + .5*a[i]*t**2); 
-            k[i*2+1] = (x[i*2+1] + a[i]*t**2); 
+            t = self.est_dt
+            for h in range(int(dt/t)):
+                a = self.accels(x,u); 
+                k = [0 for i in range(0,len(x))]; 
+                for i in range(0,len(a)):
+                    k[i*2] = (x[i*2] + x[i*2+1]*t + .5*a[i]*t**2); 
+                    k[i*2+1] = (x[i*2+1] + a[i]*t**2); 
+                x=k
 
         return k; 
 
