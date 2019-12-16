@@ -203,6 +203,8 @@ class Automaton():
         value=90
         while current_states!=previous_states:
             previous_states=copy.copy(current_states)
+            #  print(previous_states)
+            #  print(value)
             for state in automata:
                 for trans in state['trans']:
                     if (trans['name1']+trans['name2']) in previous_states:
