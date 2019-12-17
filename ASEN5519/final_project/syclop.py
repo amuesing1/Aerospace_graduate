@@ -5,7 +5,7 @@ import sys
 import copy
 import time
 import pdb
-from tqdm import tqdm
+#  from tqdm import tqdm
 
 from a_star import A_star
 from hybrid_automaton import Automaton
@@ -14,7 +14,6 @@ from estimator import UKF
 
 class SyCLoP():
     def __init__(self):
-        #  UKF.__init__(self)
         self.UKF=UKF()
         self.hybrid=Automaton()
 
@@ -34,7 +33,7 @@ class SyCLoP():
                 np.mean(end[4]),np.mean(end[5]),np.mean(end[6]),np.mean(end[7]),
                 np.mean(end[8]),np.mean(end[9]),np.mean(end[10]),np.mean(end[11])]
         # construct the cspace for the car
-        #  self.c_space_obs(obs)
+        self.c_space_obs(obs)
         # create the high level discritization
         if task:
             self.discritize_task(x_dim,y_dim,z_dim,start,end_mid)
@@ -62,8 +61,8 @@ class SyCLoP():
                 self.available.append(R)
         self.stop=False
 
-        for high_run in tqdm(range(100),ncols=100):
-        #  while not self.stop:
+        #  for high_run in tqdm(range(100),ncols=100):
+        while not self.stop:
             continue_high=np.random.choice([0,1],p=[0.125,0.875])
             if not continue_high:
                 if task:
@@ -87,14 +86,9 @@ class SyCLoP():
 
             suma=sum(probs)
             probs=[x/suma for x in probs]
-            #  print(self.high_path,self.available,self.available[np.argmax(probs)])
             # select which R to propagate samples
             R_select=np.random.choice(self.available,p=probs)
-            #  print(R_select,self.high_path,list(np.array(sorted(zip(probs,self.available),reverse=True)[:5])[:,1]))
             self.nsel[R_select]+=1
-            # explore the region
-            #  if high_run==200:
-            #      pdb.set_trace()
             self.explore(R_select,end)
 
         self.path=None
@@ -115,8 +109,8 @@ class SyCLoP():
         Create a high level plan to bais sampling
 
         Inputs:
-        start = start position of the car
-        end = goal position of the car
+        start = start position of the sub
+        end = goal position of the sub
         """
 
         start=self.locate_region(start)
@@ -159,8 +153,8 @@ class SyCLoP():
         Create a high level plan to bais sampling
 
         Inputs:
-        start = start position of the car
-        end = goal position of the car
+        start = start position of the sub
+        end = goal position of the sub
         """
 
         closest_start=self.locate_region(start)
@@ -315,6 +309,7 @@ class SyCLoP():
         Inputs:
         x_dim = [min x, max x]
         y_dim = [min y, max y]
+        z_dim = [min z, max z]
         """
 
         self.x=np.linspace(x_dim[0],x_dim[1],self.dis_size+1)
@@ -372,10 +367,12 @@ class SyCLoP():
         """
         Creates the high level discritization of the
         space and creates varriables for later use
+        specifically while using LTL task specification
 
         Inputs:
         x_dim = [min x, max x]
         y_dim = [min y, max y]
+        z_dim = [min z, max z]
         """
 
         self.x=np.linspace(x_dim[0],x_dim[1],self.dis_size+1)
@@ -546,12 +543,6 @@ class SyCLoP():
                 self.edges_task_index[ind]=[self.edges_task_dict[tuple(trans)]]
 
         self.W_task=[0]*len(self.edges_task)
-        #  print(self.closest_end,self.closest_start)
-        #  print(self.edges_task_index)
-        #  print(automata[0])
-        #  print(self.R_task)
-        #  print(self.edges_task)
-        #  sys.exit()
         
     def cost(self,Ri,Rj,connection_index):
         """
@@ -576,10 +567,12 @@ class SyCLoP():
         Finds the high level region a point belongs to
 
         Inputs:
-        point = the sampled point [x,y,theta,v,phi]
+        point = the sampled point [x,xdot,y,ydot,z,zdot,
+                                theta,theatdot,phi,phidot,
+                                psi,psidot]
 
         Outputs:
-        x_bin*32+y_bin = index of region or
+        x_bin*dis_size+y_bin+(z_bin*dis_size**2) = index of region or
         None if the point isn't valid
         """
 
@@ -612,7 +605,7 @@ class SyCLoP():
         point = the sampled point [x,y,theta,v,phi]
 
         Outputs:
-        x_bin*16+y_bin = index of bin inside of R
+        x_bin*dis_size+y_bin+(z_bin*dis_size**2)= index of bin inside of R
         """
 
         bounds=self.R_bounds[R_point]
@@ -641,7 +634,9 @@ class SyCLoP():
         for future propagation
 
         Inputs:
-        point = sampled point [x,y,theta,v,phi]
+        point = the sampled point [x,xdot,y,ydot,z,zdot,
+                                theta,theatdot,phi,phidot,
+                                psi,psidot]
 
         Outputs:
         success if point is valid
@@ -761,13 +756,14 @@ class SyCLoP():
         if self.place==2:
             u_down = np.random.normal(0.2262,size=5)
         else:
-            u_down = np.random.normal(0.2262,.1,size=5)
+            #  u_down = np.random.normal(0.2262,.1,size=5)
+            u_down = np.random.normal(0.24,.1,size=5)
         u_down = np.clip(u_down,-1,1)
         u_down = [self.UKF.u_scale[4]*x for x in u_down]
 
         for i in range(5):
-            u[i,0:2]=u_for[i,0]
-            u[i,2:4]=u_for[i,1]
+            u[i,0:2]=max(-.5,u_for[i,0])
+            u[i,2:4]=u_for[i,1]*.5
             u[i,4:]=u_down[i]
         return u
 
@@ -776,7 +772,9 @@ class SyCLoP():
         Check if the sampled point is valid
 
         Inputs:
-        point = the sampled point [x,y,theta,v,phi]
+        point = the sampled point [x,xdot,y,ydot,z,zdot,
+                                theta,theatdot,phi,phidot,
+                                psi,psidot]
         x_dim = [min x, max x]
         y_dim = [min y, max y]
         theta_dim = [min theta, max theta]
@@ -808,8 +806,10 @@ class SyCLoP():
         Check if the point satisfies the end
 
         Inputs:
-        point = the sampled point [x,y,theta,v,phi]
-        end = ending area [[x_min,x_max],[y_min,y_max],[theta_min,theta_max],[v_min,v_max]]
+        point = the sampled point [x,xdot,y,ydot,z,zdot,
+                                theta,theatdot,phi,phidot,
+                                psi,psidot]
+        end = ending area [[x_min,x_max],[xdot_min,xdot_max],[y_min,y_max]...]
 
         Outputs:
         1 if it satisfies, 0 otherwise
@@ -830,7 +830,6 @@ class SyCLoP():
         obs = list of obstacles in rectangles [[[x1,y1],[x2,y2]...],[obs2]]
         """
 
-        #TODO: rewrite for sub as a circle, should be much simpler
         # all angles the car could be at
         self.thetas=np.linspace(0,np.pi,500)
         self.c_obs=np.zeros((len(self.thetas),len(obs),4))
@@ -905,21 +904,23 @@ class SyCLoP():
                 j+=1
             i+=1
 
-    def plot_path(self,obs,x_dim,y_dim,z_dim,start,end,demo=False):
+    def plot_path(self,obs,x_dim,y_dim,z_dim,start,end,demo=False,points=False,path=False,high=False):
         V=np.array(self.T)
-        print(len(V))
+        #  print(len(V))
         end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2]),np.mean(end[3]),
                 np.mean(end[4]),np.mean(end[5]),np.mean(end[6]),np.mean(end[7]),
                 np.mean(end[8]),np.mean(end[9]),np.mean(end[10]),np.mean(end[11])]
         fig=plt.figure()
         ax=fig.add_subplot(111,projection='3d')
-        ax.scatter(V[:,0],V[:,2],V[:,4])
+        if points:
+            ax.scatter(V[:,0],V[:,2],V[:,4])
         ax.scatter(start[0],start[2],start[4],marker='*',color='green')
         ax.scatter(end_mid[0],end_mid[2],end_mid[4],marker='*',color='red')
-        for cell in self.high_path:
-            bounds=self.R_bounds[cell]
-            to_graph=[np.mean(bounds[0:2]),np.mean(bounds[2:4]),np.mean(bounds[4:6])]
-            ax.scatter(to_graph[0],to_graph[1],to_graph[2],color='C1')
+        if high:
+            for cell in self.high_path:
+                bounds=self.R_bounds[cell]
+                to_graph=[np.mean(bounds[0:2]),np.mean(bounds[2:4]),np.mean(bounds[4:6])]
+                ax.scatter(to_graph[0],to_graph[1],to_graph[2],color='C1')
 
         if not demo:
             y_top=np.linspace(3,7,100)
@@ -944,34 +945,10 @@ class SyCLoP():
         ax.set_zlim(z_dim)
         ax.invert_zaxis()
         ax.set_facecolor('lightskyblue')
-        #  while sub_control.x_est[4]>0.5:
-        #      current,point=a.planner(current,a.automata)
-        #      sub_control.sub_planner([point[0],0,point[1],0,point[2],0,0,0,0,0,0,0])
-        #  sub=ax.scatter(sub_control.x_est[0],sub_control.x_est[2],sub_control.x_est[4],c='dimgrey',s=100)
-        #  print time.time()-start
-
-        #  for edge in self.T_edges:
-        #      #  print(edge[0],edge[1])
-        #      ax.plot([edge[0][0],edge[1][0]],[edge[0][1],edge[1][1]],color='C0')
-        if self.path:
+        if (self.path) and (path):
             for i in range(1,len(self.path)):
                 ax.plot([self.path[i-1][0],self.path[i][0]],[self.path[i-1][2],self.path[i][2]],[self.path[i-1][4],self.path[i][4]],linewidth=3,color='C1')
 
-        #  if self.path:
-        #      path=np.array(self.path)
-        #      fig,ax=plt.subplots(nrows=5,ncols=1)
-        #      ax[0].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,0],color='C1')
-        #      ax[0].set_ylabel('x')
-        #      ax[1].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,1],color='C1')
-        #      ax[1].set_ylabel('y')
-        #      ax[2].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,2],color='C1')
-        #      ax[2].set_ylabel('theta')
-        #      ax[3].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,3],color='C1')
-        #      ax[3].set_ylabel('v')
-        #      ax[4].plot(np.linspace(0,self.dt*len(self.path),len(self.path)),path[:,4],color='C1')
-        #      ax[4].set_ylabel('phi')
-        #      ax[4].set_xlabel('Time')
-        #      plt.suptitle('States over Time for Solution Path')
         plt.show()
 
 if __name__ == '__main__':
@@ -986,31 +963,33 @@ if __name__ == '__main__':
         obs=[[]]
         plan.dt=1.5
         plan.solve(start,end,x_dim,y_dim,z_dim,obs)
-        plan.plot_path(obs,x_dim,y_dim,z_dim,start,end,demo=True)
+        plan.plot_path(obs,x_dim,y_dim,z_dim,start,end,demo=True,points=True)
+        plan.plot_path(obs,x_dim,y_dim,z_dim,start,end,demo=True,path=True)
     else:
         x_dim=[-2,18]
         y_dim=[-2,12]
         z_dim=[-2,8]
-        obs=[[]]
-        #  obs=[[[3,0],[5,0],[5,2],[3,2]],
-        #          [[7,3],[9,3],[9,5],[7,5]],
-        #          [[1,4],[4,4],[4,6],[1,6]],
-        #          [[5,7],[6,7],[6,10],[5,10]]]
+        obs=[[[3,0],[5,0],[5,2],[3,2]],
+                [[7,3],[9,3],[9,5],[7,5]],
+                [[1,4],[4,4],[4,6],[1,6]],
+                [[5,7],[6,7],[6,10],[5,10]]]
         plan.dt=1.5
         start=[0.1,0,5,0,5,0,0,0,0,0,0,0]
-        #  start=[5,0,5,0,5,0,0,0,0,0,0,0]
         # add key points to hit
         keys=[[[4,5],[3,7],[2,7]],[[14,15],[4,6],[4,6]],[[4,18],[-2,8],[-1,1]]]
-        #  keys=[[[14,15],[4,6],[4,6]],[[4,18],[-2,8],[-1,1]]]
         total=[]
+        all_points=[]
         place=0
         for key in keys:
             end=[key[0],[-100,100],key[1],[-100,100],key[2],[-100,100],[-100,100],[-100,100],[-100,100],[-100,100],[-100,100],[-100,100]]
             plan.solve(start,end,x_dim,y_dim,z_dim,obs,place,task=True)
-            plan.plot_path(obs,x_dim,y_dim,z_dim,start,end)
+            #  plan.plot_path(obs,x_dim,y_dim,z_dim,start,end,points=True)
             start=plan.path[-1]
             start[6:]=[0]*6
             total.extend(plan.path)
+            all_points.extend(plan.T)
             place+=1
         plan.path=total
-        plan.plot_path(obs,x_dim,y_dim,z_dim,start,end)
+        plan.T=all_points
+        plan.plot_path(obs,x_dim,y_dim,z_dim,start,end,points=True)
+        plan.plot_path(obs,x_dim,y_dim,z_dim,start,end,path=True)

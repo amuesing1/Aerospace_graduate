@@ -18,7 +18,7 @@ class SyCLoP():
         self.T=[]
         self.T_edges=[]
         self.came_from={}
-        self.L=.5
+        self.L=1
         # used to calculate the final high level region
         end_mid=[np.mean(end[0]),np.mean(end[1]),np.mean(end[2]),np.mean(end[3])]
         # construct the cspace for the car
