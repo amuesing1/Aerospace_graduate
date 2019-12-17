@@ -95,7 +95,7 @@ class SyCLoP():
         if self.stop:
             h=[0]*len(self.T)
             astar=A_star()
-            print('finding path')
+            #  print('finding path')
             # backpropagate from the final point
             total_path=[self.final]
             current=tuple(self.final)

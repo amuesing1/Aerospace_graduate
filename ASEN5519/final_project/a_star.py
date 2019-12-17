@@ -2,7 +2,6 @@ import sys
 import copy
 import numpy as np
 import time
-import pdb
 
 class A_star():
     def construct_path(self,G,start,end,h,debug=False):
