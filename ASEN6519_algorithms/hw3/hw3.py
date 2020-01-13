@@ -164,13 +164,13 @@ class MDP():
                 elif self.pi[x,y]==3:
                     plt.arrow(y,x,-1,0,head_width=width)
 
-        #  init_points=[[2,14],[14,1],[13,15],[1,0],[2,21]]
-        #  for point in init_points:
-        #      plt.scatter(point[1],point[0],300,marker="x",color='C1')
+        init_points=[[2,14],[14,1],[13,15],[1,0],[2,21]]
+        for point in init_points:
+            plt.scatter(point[1],point[0],300,marker="x",color='C1')
 
-        #  rewards=[[6,14],[11,8],[5,3],[11,20]]
-        #  for point in rewards:
-        #      plt.scatter(point[1],point[0],400,marker="X",color='C3')
+        rewards=[[6,14],[11,8],[5,3],[11,20]]
+        for point in rewards:
+            plt.scatter(point[1],point[0],400,marker="X",color='C3')
 
         plt.gca().invert_yaxis()
         plt.tight_layout()
